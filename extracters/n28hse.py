@@ -3,6 +3,7 @@ import datetime
 import os
 import time
 import re
+import random
 from pymongo import MongoClient
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
@@ -51,7 +52,9 @@ def extract_details(db, driver, link):
     phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
     phone_element.click()
 
-    time.sleep(5)  # Wait for page load
+    random_number = random.randint(2, 10)
+
+    time.sleep(random_number)  # Wait for page load
 
     # page_source = driver.page_source
     # soup = BeautifulSoup(page_source, 'html.parser')
