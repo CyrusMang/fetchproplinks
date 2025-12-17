@@ -4,12 +4,12 @@ class Prop:
         self.data = data
 
     def get_by_id(db, id):
-        prop = db['props'].find_one({ 'id': id })
+        prop = db['props'].find_one({ 'cid': id })
         return Prop(db, prop) if prop else None
 
     def update(self, data):
         update_data = { '$set': data }
-        self.db['props'].update_one({ 'id': self.data['id'] }, update_data)
+        self.db['props'].update_one({ 'cid': self.data['cid'] }, update_data)
         self.data = {**self.data, **data}
 
     def create(db, data):
