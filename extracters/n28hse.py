@@ -39,7 +39,7 @@ def extract_details(db, driver, link):
     prop_post_type = link_parts[-3]
     cid = f"28hse-{prop_id.split('-')[-1]}"
 
-    prop = Prop.get_by_id(db, id)
+    prop = Prop.get_by_id(db, cid)
     now = datetime.datetime.now().timestamp()
     if prop and 'updated_at' in prop.data:
         # if within 3 day
@@ -88,14 +88,14 @@ def extract_details(db, driver, link):
     posted_date = property_dates[0].replace('刊登:', '').strip()
     updated_date = property_dates[1].replace('更新:', '').strip()
     
-    pair_values = search_results_div.find_element(By.CSS_SELECTOR, 'table.tablePair tr')
+    pair_values = search_results_div.find_elements(By.CSS_SELECTOR, 'table.tablePair tr')
     info = {}
     for pair in pair_values:
-        name = pair.find_element(By.CSS_SELECTOR, 'td.table_left')
-        if name:
-            value = pair.find_element(By.CSS_SELECTOR, '.pairValue')
-            if value:
-                info[remove_html_tags(name.text)] = remove_html_tags(value.text)
+        names = pair.find_elements(By.CSS_SELECTOR, 'td.table_left')
+        if names:
+            values = pair.find_elements(By.CSS_SELECTOR, '.pairValue')
+            if values:
+                info[remove_html_tags(names[0].text)] = remove_html_tags(values[0].text)
 
     meta = {
         "cid": cid,
@@ -132,18 +132,18 @@ def extract_rent(db, driver1, driver2):
     # button = menu.find_element(By.CSS_SELECTOR, '[data-value="hk"]')
     # button.click()
 
-    file_path = os.path.join(FOLDER, f"28hse_links.csv")
+    # file_path = os.path.join(FOLDER, f"28hse_links.csv")
     
     def fetch_link():
-        with open(file_path, "a") as of:
-            writer = csv.writer(of)
-            content = driver1.find_element(By.ID, 'main_content')
-            search_results_divs = content.find_elements(By.CSS_SELECTOR, '.property_item')
-            for div in search_results_divs:
-                detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
-                link = detail_page_link.get_attribute('href')
-                writer.writerow([link])
-                extract_details(db, driver2, link)
+        # with open(file_path, "a") as of:
+        #     writer = csv.writer(of)
+        content = driver1.find_element(By.ID, 'main_content')
+        search_results_divs = content.find_elements(By.CSS_SELECTOR, '.property_item')
+        for div in search_results_divs:
+            detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
+            link = detail_page_link.get_attribute('href')
+            # writer.writerow([link])
+            extract_details(db, driver2, link)
     
     def go_next_page(num):
         try:
