@@ -51,13 +51,13 @@ def extract_details(db, driver, link):
     wait = WebDriverWait(driver, 10)
     try:
         phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
+        phone_element.click()
+
+        random_number = random.randint(2, 10)
+
+        time.sleep(random_number)  # Wait for page load
     except:
-        return
-    phone_element.click()
-
-    random_number = random.randint(2, 10)
-
-    time.sleep(random_number)  # Wait for page load
+        pass
 
     # page_source = driver.page_source
     # soup = BeautifulSoup(page_source, 'html.parser')
@@ -67,9 +67,25 @@ def extract_details(db, driver, link):
     breadcrumb_items = breadcrumb.find_elements(By.CSS_SELECTOR, 'a span[itemprop="name"]')
     location_parts = [item.text for item in breadcrumb_items[2:]]
 
+    image_links = []
+    image_div = driver.find_element(By.ID, 'mySliderPictures')
+    images = image_div.find_elements(By.CSS_SELECTOR, 'img')
+    for img in images:
+        img_src = img.get_attribute('src')
+        if img_src and img_src not in image_links:
+            image_links.append(img_src)
+    
+    thumb_links = []
+    thumbs_div = driver.find_element(By.ID, 'mySliderPictures_thumbDiv')
+    thumbs = thumbs_div.find_elements(By.CSS_SELECTOR, 'img')
+    for thumb in thumbs:
+        thumb_src = thumb.get_attribute('src')
+        if thumb_src and thumb_src not in thumb_links:
+            thumb_links.append(thumb_src)
+
     content_body_div = driver.find_element(By.CSS_SELECTOR, '.content_body .ten')
 
-    title = content_body_div.find_element(By.CSS_SELECTOR, '.header').text
+    title = content_body_div.find_element(By.CSS_SELECTOR, '.message .header').text
     description = content_body_div.find_element(By.ID, 'desc_normal').text
     labels = content_body_div.find_elements(By.CSS_SELECTOR, '.labels .label')
     label_texts = [label.text for label in labels]
@@ -120,7 +136,10 @@ def extract_details(db, driver, link):
         "source_posted_date": posted_date,
         "source_updated_date": updated_date,
         "info": info,
+        "image_links": image_links,
+        "thumb_links": thumb_links,
         "updated_at": datetime.datetime.now().timestamp(),
+        "source_html_content": content_body_div.get_attribute('outerHTML'),
     }
 
     if prop:
@@ -153,7 +172,10 @@ def extract_rent(db, driver1, driver2):
             detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
             link = detail_page_link.get_attribute('href')
             # writer.writerow([link])
-            extract_details(db, driver2, link)
+            try:
+                extract_details(db, driver2, link)
+            except Exception as e:
+                print(f"Error extracting details for {link}: {e}")
     
     def go_next_page(num):
         try:
@@ -199,7 +221,10 @@ def extract_sell(db, driver1, driver2):
             detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
             link = detail_page_link.get_attribute('href')
             # writer.writerow([link])
-            extract_details(db, driver2, link)
+            try:
+                extract_details(db, driver2, link)
+            except Exception as e:
+                print(f"Error extracting details for {link}: {e}")
     
     def go_next_page(num):
         try:
