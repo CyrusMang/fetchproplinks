@@ -1,4 +1,4 @@
-import csv
+# import csv
 import datetime
 import os
 import time
@@ -49,7 +49,10 @@ def extract_details(db, driver, link):
 
     driver.get(link)
     wait = WebDriverWait(driver, 10)
-    phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
+    try:
+        phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
+    except:
+        return
     phone_element.click()
 
     random_number = random.randint(2, 10)
@@ -64,31 +67,38 @@ def extract_details(db, driver, link):
     breadcrumb_items = breadcrumb.find_elements(By.CSS_SELECTOR, 'a span[itemprop="name"]')
     location_parts = [item.text for item in breadcrumb_items[2:]]
 
-    search_results_div = driver.find_element(By.CSS_SELECTOR, '.content_body .ten')
+    content_body_div = driver.find_element(By.CSS_SELECTOR, '.content_body .ten')
 
-    title = search_results_div.find_element(By.CSS_SELECTOR, '.header').text
-    description = search_results_div.find_element(By.ID, 'desc_normal').text
-    labels = search_results_div.find_elements(By.CSS_SELECTOR, '.labels .label')
+    title = content_body_div.find_element(By.CSS_SELECTOR, '.header').text
+    description = content_body_div.find_element(By.ID, 'desc_normal').text
+    labels = content_body_div.find_elements(By.CSS_SELECTOR, '.labels .label')
     label_texts = [label.text for label in labels]
 
-    contacts = search_results_div.find_elements(By.CSS_SELECTOR, '.contactsDiv')
+    contacts = content_body_div.find_elements(By.CSS_SELECTOR, '.contactsDiv')
     contacts_data = []
     for contact in contacts:
         name = contact.find_element(By.CSS_SELECTOR, '.header').text
+        license_no = None
+        content_spans = contact.find_elements(By.CSS_SELECTOR, '.content span.less_span')
+        for span in content_spans:
+            span_text = span.text
+            if '牌照號碼' in span_text:
+                license_no = span_text.replace('代理個人牌照號碼:', '').strip()
         phones = contact.find_elements(By.CSS_SELECTOR, '[attr="phone"]')
         wtsapps = contact.find_elements(By.CSS_SELECTOR, '[attr="whatsapp"]')
         contacts_data.append({
             "name": name,
+            "license_no": license_no,
             "phones": [phone.get_attribute('href') for phone in phones],
             "wtsapps": [wtsapp.get_attribute('href') for wtsapp in wtsapps],
         })
 
-    property_dates_div = search_results_div.find_element(By.CSS_SELECTOR, '.propertyDate')
+    property_dates_div = content_body_div.find_element(By.CSS_SELECTOR, '.propertyDate')
     property_dates = remove_html_tags(property_dates_div.text).split('|')
     posted_date = property_dates[0].replace('刊登:', '').strip()
     updated_date = property_dates[1].replace('更新:', '').strip()
     
-    pair_values = search_results_div.find_elements(By.CSS_SELECTOR, 'table.tablePair tr')
+    pair_values = content_body_div.find_elements(By.CSS_SELECTOR, 'table.tablePair tr')
     info = {}
     for pair in pair_values:
         names = pair.find_elements(By.CSS_SELECTOR, 'td.table_left')
@@ -178,18 +188,18 @@ def extract_sell(db, driver1, driver2):
     # button = menu.find_element(By.CSS_SELECTOR, '[data-value="hk"]')
     # button.click()
 
-    file_path = os.path.join(FOLDER, f"28hse_links.csv")
+    # file_path = os.path.join(FOLDER, f"28hse_links.csv")
     
     def fetch_link():
-        with open(file_path, "a") as of:
-            writer = csv.writer(of)
-            content = driver1.find_element(By.ID, 'main_content')
-            search_results_divs = content.find_elements(By.CSS_SELECTOR, '.property_item')
-            for div in search_results_divs:
-                detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
-                link = detail_page_link.get_attribute('href')
-                writer.writerow([link])
-                extract_details(db, driver2, link)
+        # with open(file_path, "a") as of:
+        #     writer = csv.writer(of)
+        content = driver1.find_element(By.ID, 'main_content')
+        search_results_divs = content.find_elements(By.CSS_SELECTOR, '.property_item')
+        for div in search_results_divs:
+            detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
+            link = detail_page_link.get_attribute('href')
+            # writer.writerow([link])
+            extract_details(db, driver2, link)
     
     def go_next_page(num):
         try:
