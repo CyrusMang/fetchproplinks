@@ -124,7 +124,7 @@ def extract_details(db, driver, link):
                 info[remove_html_tags(names[0].text)] = remove_html_tags(values[0].text)
 
     meta = {
-        "cid": cid,
+        "source_id": cid,
         "source_url": link,
         "type": prop_type,
         "post_type": prop_post_type,
@@ -140,6 +140,7 @@ def extract_details(db, driver, link):
         "thumb_links": thumb_links,
         "updated_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
+        "status": "pending_extraction",
     }
 
     if prop:
