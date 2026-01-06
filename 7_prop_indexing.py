@@ -37,11 +37,12 @@ def main():
    db = client['prop_main']
    collection = db['props']
    props = collection.find({
-      'summary': { '$exists': True },
+      'v1_extracted_data.summary': { '$exists': True },
+      'v1_embedding': { '$exists': False },
    }).limit(batch_size)
    for prop in props:
-      text = prop['summary']
-      if not text or len(text) < 50:
+      text = prop['v1_extracted_data']['summary']
+      if not text or len(text) < 10:
          continue
       # chunks = text_split(text)
       # embeddings = []
@@ -50,10 +51,10 @@ def main():
       #    embeddings.append({ 'chunk': chunk, 'embedding': embedding })
       embedding = get_embedding(text)
       collection.update_one(
-         { 'id': prop['id'] },
-         { '$set': { 'embedding': embedding } }
+         { 'source_id': prop['source_id'] },
+         { '$set': { 'v1_embedding': embedding } }
       )
-      print(f"Updated place {prop['id']} with embeddings.")
+      print(f"Updated place {prop['source_id']} with embeddings.")
    client.close()
 
 if __name__ == '__main__':

@@ -28,6 +28,7 @@ Extract the useful information and summarize about the property into the followi
 {{
     "estate_or_building_name": "string",
     "features": [ "string", ... ],
+    "price": "string",
     "nearby_places": [ "string", ... ],
     "transportation_options": [ "string", ... ],
     "additional_notes": "string",
