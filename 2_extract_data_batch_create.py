@@ -28,11 +28,20 @@ Extract the useful information and summarize about the property into the followi
 {{
     "estate_or_building_name": "string",
     "features": [ "string", ... ],
-    "price": "string",
+    "rent_price": "string",
+    "sell_price": "string",
     "nearby_places": [ "string", ... ],
     "transportation_options": [ "string", ... ],
+    "contacts": [{{
+        "name": "string",
+        "phone": "string",
+        "whatsapp": "string",
+        "is_agent": boolean,
+        "license_no": "string",
+    }}, ... ],
     "additional_notes": "string",
     "additional_information_in_json": {{ "key": "value", ...}},
+    "information_updated_date": "string",
     "summary": "string"
 }}
 """

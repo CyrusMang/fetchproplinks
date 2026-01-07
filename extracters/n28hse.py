@@ -22,7 +22,8 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 FOLDER = os.path.join(DIR, '..', ARTIFACTS_FOLDER)
 
 settings = {
-    "RENT_URL": "https://www.28hse.com/rent"
+    "RENT_URL": "https://www.28hse.com/rent",
+    "BUY_URL": "https://www.28hse.com/buy"
 }
 
 def remove_html_tags(text):
@@ -50,12 +51,12 @@ def extract_details(db, driver, link):
     driver.get(link)
     wait = WebDriverWait(driver, 10)
     try:
-        phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
-        phone_element.click()
-
         random_number = random.randint(2, 10)
 
         time.sleep(random_number)  # Wait for page load
+
+        phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
+        phone_element.click()
     except:
         pass
 
@@ -124,6 +125,7 @@ def extract_details(db, driver, link):
                 info[remove_html_tags(names[0].text)] = remove_html_tags(values[0].text)
 
     meta = {
+        "source_channel": "28hse",
         "source_id": cid,
         "source_url": link,
         "type": prop_type,
@@ -201,7 +203,7 @@ def extract_rent(db, driver1, driver2):
             break
 
 def extract_sell(db, driver1, driver2):
-    driver1.get(settings["RENT_URL"])
+    driver1.get(settings["BUY_URL"])
     
     # Wait for content to load
     wait = WebDriverWait(driver1, 10)
