@@ -31,7 +31,7 @@ driver = uc.Chrome(options=options, use_subprocess=True, version_main=143)
 Random delays (2-10s) between requests to avoid detection.
 
 ### Data Deduplication
-Properties tracked by composite ID: `cid = "28hse-{prop_id}"`. Updates skip records refreshed within 3 days (`updated_at` timestamp check).
+Properties tracked by composite ID: `source_id = "28hse-{prop_id}"`. Updates skip records refreshed within 3 days (`updated_at` timestamp check).
 
 ### Selector Patterns
 - Phone/WhatsApp clicks: `[attr="phone"]`, `[attr="whatsapp"]`

@@ -30,6 +30,10 @@ Extract the useful information and summarize about the property into the followi
     "features": [ "string", ... ],
     "rent_price": "string",
     "sell_price": "string",
+    "net_size": "string",
+    "gross_size": "string",
+    "number_of_bedrooms": "string",
+    "number_of_bathrooms": "string",
     "nearby_places": [ "string", ... ],
     "transportation_options": [ "string", ... ],
     "contacts": [{{

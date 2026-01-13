@@ -37,14 +37,14 @@ def extract_details(db, driver, link):
     prop_id = link_parts[-1]
     prop_type = link_parts[-2]
     prop_post_type = link_parts[-3]
-    cid = f"midland-{prop_id.split('-')[-1]}"
+    source_id = f"midland-{prop_id.split('-')[-1]}"
 
-    prop = Prop.get_by_id(db, cid)
+    prop = Prop.get_by_id(db, source_id)
     now = datetime.datetime.now().timestamp()
     if prop and 'updated_at' in prop.data:
         # if within 3 day
         if now - prop.data['updated_at'] < 3 * 24 * 60 * 60:
-            print(f"Skip existing prop {cid}")
+            print(f"Skip existing prop {source_id}")
             return
 
     driver.get(link)
@@ -76,7 +76,7 @@ def extract_details(db, driver, link):
     
     meta = {
         "source_channel": "midland",
-        "source_id": cid,
+        "source_id": source_id,
         "source_url": link,
         "type": prop_type,
         "post_type": prop_post_type,
@@ -89,10 +89,10 @@ def extract_details(db, driver, link):
 
     if prop:
         prop.update(meta)
-        print(f"Updated prop {cid}")
+        print(f"Updated prop {source_id}")
     else:
         Prop.create(db, meta)
-        print(f"Created prop {cid}")
+        print(f"Created prop {source_id}")
     
     random_number = random.randint(2, 10)
 

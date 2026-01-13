@@ -4,12 +4,16 @@ class Prop:
         self.data = data
 
     def get_by_id(db, id):
-        prop = db['props'].find_one({ 'cid': id })
+        prop = db['props'].find_one({ 'source_id': id })
         return Prop(db, prop) if prop else None
+    
+    def batch(db, skip, limit):
+        props_cursor = db['props'].find({"type": "apartment"}).skip(skip).limit(limit)
+        return [Prop(db, prop) for prop in props_cursor]
 
     def update(self, data):
         update_data = { '$set': data }
-        self.db['props'].update_one({ 'cid': self.data['cid'] }, update_data)
+        self.db['props'].update_one({ 'source_id': self.data['source_id'] }, update_data)
         self.data = {**self.data, **data}
 
     def create(db, data):
