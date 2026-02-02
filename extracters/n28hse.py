@@ -149,8 +149,10 @@ def extract_details(db, driver, link):
         prop.update(meta)
         print(f"Updated prop {source_id}")
     else:
-        Prop.create(db, meta)
+        prop = Prop.create(db, meta)
         print(f"Created prop {source_id}")
+    
+    prop.download_photos()
 
 
 def extract_rent(db, driver1, driver2):

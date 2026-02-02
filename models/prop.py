@@ -1,3 +1,8 @@
+import requests
+
+from utils.azure_blob import upload
+
+
 class Prop:
     def __init__(self, db, data):
         self.db = db
@@ -13,6 +18,19 @@ class Prop:
             "v1_extracted_data": { '$exists': True },
         }).skip(skip).limit(limit)
         return [Prop(db, prop) for prop in props_cursor]
+
+    def download_photos(self):
+        link_blobs = []
+        links = self.data.get('image_links', [])
+        for link in links:
+            name = link.split('/')[-1].split('?')[0]
+            response = requests.get(link)
+            if response.status_code != 200:
+                break
+            blob = upload('props', name, response.content, response.headers.get('content-type'))
+            link_blobs.append(blob)
+        self.update({'image_links_downloaded': link_blobs})
+        self.data['image_links_downloaded'] = link_blobs
 
     def update(self, data):
         update_data = { '$set': data }
