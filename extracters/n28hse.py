@@ -72,7 +72,7 @@ def extract_details(db, driver, link):
     image_div = driver.find_element(By.ID, 'mySliderPictures')
     images = image_div.find_elements(By.CSS_SELECTOR, 'img')
     for img in images:
-        img_src = img.get_attribute('src')
+        img_src = img.get_attribute('data-src')
         if img_src and img_src not in image_links:
             image_links.append(img_src)
     
