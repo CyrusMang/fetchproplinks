@@ -28,12 +28,13 @@ Extract the useful information and summarize about the property into the followi
 {{
     "estate_or_building_name": "string",
     "features": [ "string", ... ],
-    "rent_price": "string",
-    "sell_price": "string",
-    "net_size": "string",
-    "gross_size": "string",
-    "number_of_bedrooms": "string",
-    "number_of_bathrooms": "string",
+    "rent_price": number|null,
+    "sell_price": number|null,
+    "net_size_sqft": number|null,
+    "gross_size_sqft": number|null,
+    "number_of_bedrooms": number|null,
+    "number_of_bathrooms": number|null,
+    "building_age": number|null,
     "nearby_places": [ "string", ... ],
     "transportation_options": [ "string", ... ],
     "contacts": [{{
@@ -77,7 +78,7 @@ def main():
         client.close()
         return
 
-    properties = collection.find(f).limit(batch_size)
+    properties = collection.find(f).sort("updated_at", -1).limit(batch_size)
 
     batch_code = gen_batch_code()
     batch_file_path = os.path.join(folder, 'batch_files', f"batch-{batch_code}.jsonl")

@@ -105,14 +105,15 @@ class PropMariaDB:
             json.dumps({ 'url': data.get('source_url') })
         ]
 
+        contact_ids = []
         for contact in data.get('contacts', []):
             cursor.execute("SELECT * FROM contacts WHERE contact_name_chi = %s", (contact.get('name'),))
             c = cursor.fetchone()
             contact_id = None
             if c:
-                contact_id = contact['id']
+                contact_id = contact['contact_id']
             else:
-                cursor.execute("INSERT INTO contacts (contact_name, agent_lic) VALUES (%s, %s)", (contact.get('phone'), contact.get('license_no')))
+                cursor.execute("INSERT INTO contacts (contact_name_chi, agent_lic) VALUES (%s, %s)", (contact.get('name'), contact.get('license_no')))
                 contact_id = cursor.lastrowid
             for phone in contact.get('phones', []):
                 if not phone:
@@ -130,6 +131,7 @@ class PropMariaDB:
                 cursor.execute("INSERT INTO phones (phone, is_wtsapp) VALUES (%s, %s)", (match.group(0), True))
                 phone_id = cursor.lastrowid
                 cursor.execute("INSERT INTO contact_phones (contact_id, phone_id) VALUES (%s, %s)", (contact_id, phone_id))
+            contact_ids.append(contact_id)
         
         placeholders = []
         for _ in columns:
@@ -137,9 +139,12 @@ class PropMariaDB:
         
         query = f"INSERT INTO properties ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
         cursor.execute(query, values)
+        prop_id = cursor.lastrowid
+
+        for contact_id in contact_ids:
+            cursor.execute("INSERT INTO property_contacts (property_id, contact_id) VALUES (%s, %s)", (prop_id, contact_id))
         db.commit()
         
-        prop_id = cursor.lastrowid
         cursor.close()
         
         prop = PropMariaDB(db, {'id': prop_id, **data})

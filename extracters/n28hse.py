@@ -51,12 +51,12 @@ def extract_details(db, driver, link):
     driver.get(link)
     wait = WebDriverWait(driver, 10)
     try:
+        phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
+        phone_element.click()
+
         random_number = random.randint(2, 10)
 
         time.sleep(random_number)  # Wait for page load
-
-        phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
-        phone_element.click()
     except:
         pass
 

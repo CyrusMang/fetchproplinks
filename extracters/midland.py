@@ -52,6 +52,8 @@ def extract_details(db, driver, link):
     photo_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[mediatype="photo"]')))
     photo_element.click()
 
+    time.sleep(2)  # Wait for page load
+
     # page_source = driver.page_source
     # soup = BeautifulSoup(page_source, 'html.parser')
     # text_content = soup.get_text(separator=' ', strip=True)

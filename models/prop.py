@@ -8,7 +8,10 @@ class Prop:
         return Prop(db, prop) if prop else None
     
     def batch(db, skip, limit):
-        props_cursor = db['props'].find({"type": "apartment"}).skip(skip).limit(limit)
+        props_cursor = db['props'].find({
+            "type": "apartment",
+            "v1_extracted_data": { '$exists': True },
+        }).skip(skip).limit(limit)
         return [Prop(db, prop) for prop in props_cursor]
 
     def update(self, data):
