@@ -23,14 +23,24 @@ class Prop:
         link_blobs = []
         links = self.data.get('image_links', [])
         for link in links:
-            name = link.split('/')[-1].split('?')[0]
             response = requests.get(link)
             if response.status_code != 200:
                 break
+            name = link.split('/')[-1].split('?')[0]
             blob = upload('props', name, response.content, response.headers.get('content-type'))
             link_blobs.append(blob)
-        self.update({'image_links_downloaded': link_blobs})
+        thumb_blobs = []
+        thumb_links = self.data.get('thumb_links', [])
+        for thumb_link in thumb_links:
+            response = requests.get(thumb_link)
+            if response.status_code != 200:
+                break
+            name = thumb_link.split('/')[-1].split('?')[0]
+            blob = upload('props', name, response.content, response.headers.get('content-type'))
+            thumb_blobs.append(blob)
+        self.update({'image_links_downloaded': link_blobs, 'thumb_links_downloaded': thumb_blobs})
         self.data['image_links_downloaded'] = link_blobs
+        self.data['thumb_links_downloaded'] = thumb_blobs
 
     def update(self, data):
         update_data = { '$set': data }

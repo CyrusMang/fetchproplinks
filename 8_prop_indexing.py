@@ -6,7 +6,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
-rating_threshold = 3.7
 batch_size = 5
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
@@ -39,7 +38,7 @@ def main():
    props = collection.find({
       'v1_extracted_data.summary': { '$exists': True },
       'v1_embedding': { '$exists': False },
-   }).limit(batch_size)
+   }).sort("updated_at", -1).limit(batch_size)
    for prop in props:
       text = prop['v1_extracted_data']['summary']
       if not text or len(text) < 10:

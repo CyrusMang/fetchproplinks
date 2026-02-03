@@ -53,6 +53,8 @@ def main():
                     formatted_json = json.dumps(json_response, ensure_ascii=False)  
                     data_file.write(f"{formatted_json}\n")
             remove_file(file_path)
+            client.files.delete(content['output_file_id'])
+            client.files.delete(content['input_file_id'])
             print(f"Processed batch {batch_code} and saved data to {data_file_path}")
 
 

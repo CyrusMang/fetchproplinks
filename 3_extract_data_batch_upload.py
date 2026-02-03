@@ -48,7 +48,7 @@ def main():
         batch_response = client.batches.create(
             input_file_id=file.id,
             endpoint="/chat/completions",
-            completion_window="24h",
+            completion_window="24h"
         )
         batch_code = file_path.split('/')[-1].split('.')[0].replace('batch-', '')
         uploaded_batch_file_path = os.path.join(folder, 'upload_batchs', f"batch-{batch_code}.json")

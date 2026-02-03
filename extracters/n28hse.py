@@ -70,19 +70,21 @@ def extract_details(db, driver, link):
 
     image_links = []
     image_div = driver.find_element(By.ID, 'mySliderPictures')
-    images = image_div.find_elements(By.CSS_SELECTOR, 'img')
-    for img in images:
-        img_src = img.get_attribute('data-src')
-        if img_src and img_src not in image_links:
-            image_links.append(img_src)
+    if image_div:
+        images = image_div.find_elements(By.CSS_SELECTOR, 'img')
+        for img in images:
+            img_src = img.get_attribute('data-src')
+            if img_src and img_src not in image_links:
+                image_links.append(img_src)
     
     thumb_links = []
     thumbs_div = driver.find_element(By.ID, 'mySliderPictures_thumbDiv')
-    thumbs = thumbs_div.find_elements(By.CSS_SELECTOR, 'img')
-    for thumb in thumbs:
-        thumb_src = thumb.get_attribute('src')
-        if thumb_src and thumb_src not in thumb_links:
-            thumb_links.append(thumb_src)
+    if thumbs_div:
+        thumbs = thumbs_div.find_elements(By.CSS_SELECTOR, 'img')
+        for thumb in thumbs:
+            thumb_src = thumb.get_attribute('src')
+            if thumb_src and thumb_src not in thumb_links:
+                thumb_links.append(thumb_src)
 
     content_body_div = driver.find_element(By.CSS_SELECTOR, '.content_body .ten')
 
@@ -223,10 +225,10 @@ def extract_sell(db, driver1, driver2):
         content = driver1.find_element(By.ID, 'main_content')
         search_results_divs = content.find_elements(By.CSS_SELECTOR, '.property_item')
         for div in search_results_divs:
-            detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
-            link = detail_page_link.get_attribute('href')
             # writer.writerow([link])
             try:
+                detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
+                link = detail_page_link.get_attribute('href')
                 extract_details(db, driver2, link)
             except Exception as e:
                 print(f"Error extracting details for {link}: {e}")
