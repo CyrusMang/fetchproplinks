@@ -1,4 +1,3 @@
-import json
 import re
 
 class PropMariaDB:
@@ -9,7 +8,7 @@ class PropMariaDB:
     @staticmethod
     def get_by_id(db, id):
         cursor = db.cursor(dictionary=True, buffered=True)
-        cursor.execute("SELECT * FROM properties WHERE channel_property_id = %s", (id,))
+        cursor.execute("SELECT * FROM processed_properties WHERE source_id = %s", (id,))
         result = cursor.fetchone()
         cursor.close()
         return PropMariaDB(db, result) if result else None
@@ -45,7 +44,7 @@ class PropMariaDB:
         values.append(self.data['channel_property_id'])
         
         cursor = self.db.cursor()
-        query = f"UPDATE properties SET {', '.join(set_clause)} WHERE channel_property_id = %s"
+        query = f"UPDATE processed_properties SET {', '.join(set_clause)} WHERE source_id = %s"
         cursor.execute(query, values)
         self.db.commit()
         cursor.close()
@@ -62,34 +61,35 @@ class PropMariaDB:
         elif data.get('source_channel') == 'spacious':
             channel_id = 3
 
-        cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND district LIKE %s", (channel_id, f"%{data.get('district')}%"))
+        v1_extracted_data = data.get('v1_extracted_data', {})
+        cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND district LIKE %s", (channel_id, f"%{v1_extracted_data.get('district')}%"))
         district = cursor.fetchone()
 
         # Prepare columns and values
         columns = [
-            'channel_id',
-            'channel_property_id', 
+            'source_id', 
+            'source_url', 
+            'property_status',
             'description_chi', 
             'property_type', 
             'tags_chi', 
             'listing_type',
             'building_chi',
-            'price',
+            'price_from',
             'net_size',
             'gross_size',
             'bedroom',
             'bathroom',
             'price_sqft',
             'propx_district_id',
-            'property_json',
         ]
-        v1_extracted_data = data.get('v1_extracted_data', {})
         post_type = 1 if data.get('post_type') == 'sell' else 2
         price = v1_extracted_data.get('rent_price', 0) if post_type == 2 else v1_extracted_data.get('sell_price', 0)
         size = v1_extracted_data.get('net_size', 0)
         values = [
-            channel_id,
             data.get('source_id'),
+            data.get('source_url'),
+            'Active',
             data.get('description_chi'),
             data.get('type'),
             data.get('tags_chi'),
@@ -102,7 +102,6 @@ class PropMariaDB:
             v1_extracted_data.get('number_of_bathrooms', 0),
             (price / size) if size and price else None,
             district['district_id'] if district else None,
-            json.dumps({ 'url': data.get('source_url') })
         ]
 
         contact_ids = []
@@ -137,7 +136,7 @@ class PropMariaDB:
         for _ in columns:
             placeholders.append('%s')
         
-        query = f"INSERT INTO properties ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+        query = f"INSERT INTO processed_properties ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
         cursor.execute(query, values)
         prop_id = cursor.lastrowid
 

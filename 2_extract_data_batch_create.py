@@ -26,8 +26,13 @@ HTML body of a property details page.
 Questions: 
 Extract the useful information and summarize about the property into the following JSON format:
 {{
+    "title": "string",
+    "description": "string",
     "estate_or_building_name": "string",
+    "district": "string",
     "features": [ "string", ... ],
+    "photo_urls": [ "string", ... ],
+    "photo_thumb_urls": [ "string", ... ],
     "rent_price": number|null,
     "sell_price": number|null,
     "net_size_sqft": number|null,
@@ -47,6 +52,8 @@ Extract the useful information and summarize about the property into the followi
     "additional_notes": "string",
     "additional_information_in_json": {{ "key": "value", ...}},
     "information_updated_date": "string",
+    "posted_date": "string",
+    "post_updated_date": "string",
     "summary": "string"
 }}
 """
