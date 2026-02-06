@@ -45,7 +45,10 @@ def move_data():
         for prop in props:
             data = prop.data
             source_id = data['source_id']
-            PropMariaDB.create_or_update(mariadb, source_id, data)
+            try:
+                PropMariaDB.create_or_update(mariadb, source_id, data)
+            except Exception as e:
+                print(f"Error processing prop {source_id}: {e}")
         last += len(props)
 
 if __name__ == '__main__':

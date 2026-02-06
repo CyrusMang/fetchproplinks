@@ -20,14 +20,14 @@ class PropMariaDB:
             'tags_chi', 
             'listing_type',
             'building_chi',
-            'price',
+            'price_from',
             'net_size',
             'price_sqft',
         ]
         v1_extracted_data = data.get('v1_extracted_data', {})
         post_type = 1 if data.get('post_type') == 'sell' else 2
-        price = v1_extracted_data.get('rent_price', 0) if post_type == 2 else v1_extracted_data.get('sell_price', 0)
-        size = v1_extracted_data.get('net_size', 0)
+        price = int(v1_extracted_data.get('rent_price', 0)) if post_type == 2 else int(v1_extracted_data.get('sell_price', 0))
+        size = int(v1_extracted_data.get('net_size', 0))
         values = [
             data.get('description_chi'),
             data.get('tags_chi'),
@@ -40,8 +40,8 @@ class PropMariaDB:
         set_clause = []
         for key in columns:
             set_clause.append(f"{key} = %s")
-        
-        values.append(self.data['channel_property_id'])
+
+        values.append(self.data['source_id'])
         
         cursor = self.db.cursor()
         query = f"UPDATE processed_properties SET {', '.join(set_clause)} WHERE source_id = %s"
@@ -53,7 +53,7 @@ class PropMariaDB:
 
     @staticmethod
     def create(db, data):
-        cursor = db.cursor()
+        cursor = db.cursor(dictionary=True, buffered=True)
 
         channel_id = 1
         if data.get('source_channel') == 'squarefoot':
@@ -62,8 +62,13 @@ class PropMariaDB:
             channel_id = 3
 
         v1_extracted_data = data.get('v1_extracted_data', {})
-        cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND district LIKE %s", (channel_id, f"%{v1_extracted_data.get('district')}%"))
+        district_keywords = v1_extracted_data.get('district', '').split(' ')
+        cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND district LIKE %s OR district LIKE %s", (channel_id, f"%{district_keywords[0]}%", f"%{district_keywords[-1]}%"))
+        #cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND district LIKE %s", (channel_id, f"%{v1_extracted_data.get('district')}%"))
         district = cursor.fetchone()
+
+        if not district:
+            raise Exception(f"District not found {data.get('source_id')} and district {v1_extracted_data.get('district')}")
 
         # Prepare columns and values
         columns = [
@@ -84,8 +89,8 @@ class PropMariaDB:
             'propx_district_id',
         ]
         post_type = 1 if data.get('post_type') == 'sell' else 2
-        price = v1_extracted_data.get('rent_price', 0) if post_type == 2 else v1_extracted_data.get('sell_price', 0)
-        size = v1_extracted_data.get('net_size', 0)
+        price = int(v1_extracted_data.get('rent_price', 0)) if post_type == 2 else int(v1_extracted_data.get('sell_price', 0))
+        size = int(v1_extracted_data.get('net_size', 0))
         values = [
             data.get('source_id'),
             data.get('source_url'),
@@ -101,7 +106,7 @@ class PropMariaDB:
             v1_extracted_data.get('number_of_bedrooms', 0),
             v1_extracted_data.get('number_of_bathrooms', 0),
             (price / size) if size and price else None,
-            district['district_id'] if district else None,
+            district['propx_district_id'] if district else None,
         ]
 
         contact_ids = []

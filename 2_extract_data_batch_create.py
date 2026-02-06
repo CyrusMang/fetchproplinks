@@ -30,6 +30,7 @@ Extract the useful information and summarize about the property into the followi
     "description": "string",
     "estate_or_building_name": "string",
     "district": "string",
+    "floor": "string",
     "features": [ "string", ... ],
     "photo_urls": [ "string", ... ],
     "photo_thumb_urls": [ "string", ... ],
