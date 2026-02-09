@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 import json
 from pymongo import MongoClient
@@ -13,17 +14,20 @@ batch_size = 10
 
 def check_batch(collection, filter, skip=0, limit=batch_size):
     properties = collection.find(filter).sort("updated_at", 1).skip(skip).limit(limit)
-    if properties.count() == 0:
-        print("No properties found for review.")
-        return False
+    count = 0
     for prop in properties:
+        count += 1
         response = requests.get(prop['source_url'])
         if response.status_code != 200:
-            break
-        collection.update_one(
-            { 'source_id': prop['source_id'] },
-            { '$set': { 'status': "archived" } }
-        )
+            collection.update_one(
+                { 'source_id': prop['source_id'] },
+                { '$set': { 'status': "archived" } }
+            )
+            print(f"Archived place {prop['source_id']} due to inaccessible URL. Status code: {response.status_code}")
+        else:
+            print(f"Place {prop['source_id']} is still accessible.")
+    if count < limit:
+        return False
     return True
 
 def main():
@@ -40,5 +44,9 @@ def main():
         if not check_batch(collection, f, skip=skip):
             break
         skip += batch_size
+        time.sleep(2)  # Wait for page load
     print("Review completed.")
     client.close()
+
+if __name__ == '__main__':
+   main()
