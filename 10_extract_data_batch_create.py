@@ -33,7 +33,6 @@ Extract the useful information and summarize about the property into the followi
     "floor": "string",
     "features": [ "string", ... ],
     "photo_urls": [ "string", ... ],
-    "photo_thumb_urls": [ "string", ... ],
     "rent_price": number|null,
     "sell_price": number|null,
     "net_size_sqft": number|null,

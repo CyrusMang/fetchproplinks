@@ -23,6 +23,8 @@ class PropMariaDB:
             'price_from',
             'net_size',
             'price_sqft',
+            'floor',
+            'building_age',
         ]
         v1_extracted_data = data.get('v1_extracted_data', {})
         post_type = 1 if data.get('post_type') == 'sell' else 2
@@ -36,6 +38,8 @@ class PropMariaDB:
             price,
             size,
             (price / size) if size and price else None,
+            v1_extracted_data.get('floor', ''),
+            v1_extracted_data.get('building_age', None),
         ]
         set_clause = []
         for key in columns:
@@ -60,15 +64,18 @@ class PropMariaDB:
             channel_id = 2
         elif data.get('source_channel') == 'spacious':
             channel_id = 3
+        elif data.get('source_channel') == 'house730':
+            channel_id = 4
 
         v1_extracted_data = data.get('v1_extracted_data', {})
-        district_keywords = v1_extracted_data.get('district', '').split(' ')
-        cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND district LIKE %s OR district LIKE %s", (channel_id, f"%{district_keywords[0]}%", f"%{district_keywords[-1]}%"))
+        district_keywords = v1_extracted_data.get('district', '').replace(',', ' ').split(' ')
+        district_keyword = district_keywords[-1].strip()
+        cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND (district_chi LIKE %s OR district LIKE %s)", (channel_id, f"%{district_keyword}%", f"%{district_keyword}%"))
         #cursor.execute("SELECT * FROM district_references WHERE channel_id = %s AND district LIKE %s", (channel_id, f"%{v1_extracted_data.get('district')}%"))
         district = cursor.fetchone()
 
         if not district:
-            raise Exception(f"District not found {data.get('source_id')} and district {v1_extracted_data.get('district')}")
+            raise Exception(f"District not found {data.get('source_id')} and district {district_keyword}")
 
         # Prepare columns and values
         columns = [
@@ -87,6 +94,8 @@ class PropMariaDB:
             'bathroom',
             'price_sqft',
             'propx_district_id',
+            'floor',
+            'building_age',
         ]
         post_type = 1 if data.get('post_type') == 'sell' else 2
         price = int(v1_extracted_data.get('rent_price', 0)) if post_type == 2 else int(v1_extracted_data.get('sell_price', 0))
@@ -107,6 +116,8 @@ class PropMariaDB:
             v1_extracted_data.get('number_of_bathrooms', 0),
             (price / size) if size and price else None,
             district['propx_district_id'] if district else None,
+            v1_extracted_data.get('floor', ''),
+            v1_extracted_data.get('building_age', None),
         ]
 
         contact_ids = []
@@ -115,7 +126,7 @@ class PropMariaDB:
             c = cursor.fetchone()
             contact_id = None
             if c:
-                contact_id = contact['contact_id']
+                contact_id = c['contact_id']
             else:
                 cursor.execute("INSERT INTO contacts (contact_name_chi, agent_lic) VALUES (%s, %s)", (contact.get('name'), contact.get('license_no')))
                 contact_id = cursor.lastrowid

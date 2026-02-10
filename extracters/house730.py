@@ -50,6 +50,14 @@ def extract_details(db, driver2, link):
     except:
         pass
 
+    # get the image links from meta tag
+    image_links = []
+    meta_tags = driver2.find_elements(By.CSS_SELECTOR, 'meta[property="og:image"]')
+    for meta_tag in meta_tags:
+        image_url = meta_tag.get_attribute('content')
+        if image_url:
+            image_links.append(image_url)
+
     content_body_div = driver2.find_element(By.ID, 'pc-services-detail')
 
     meta = {
@@ -59,6 +67,7 @@ def extract_details(db, driver2, link):
         "type": 'apartment',
         "post_type": prop_post_type,
         "updated_at": datetime.datetime.now().timestamp(),
+        "image_links": image_links,
         "source_html_content": content_body_div.get_attribute('outerHTML'),
         "status": "pending_extraction",
     }
@@ -89,12 +98,12 @@ def extract_rent(db, driver1, driver2):
         content = driver1.find_element(By.CSS_SELECTOR, '.service-list-contnet')
         search_results_links = content.find_elements(By.CSS_SELECTOR, 'a.card-content-title')
         for link_element in search_results_links:
-            link = link_element.get_attribute('href')
             # writer.writerow([link])
             try:
+                link = link_element.get_attribute('href')
                 extract_details(db, driver2, link)
             except Exception as e:
-                print(f"Error extracting details for {link}: {e}")
+                print(f"Error extracting details for {link_element}: {e}")
     
     def go_next_page(num):
         #try:
