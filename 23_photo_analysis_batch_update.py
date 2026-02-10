@@ -102,7 +102,6 @@ def process_photo_analysis_result(result_line, collection):
             
             # Match analysis results with URLs
             analysed_photos = []
-            selected_photos = []
             
             for idx, photo_analysis in enumerate(photos):
                 if idx < len(all_urls):
@@ -119,48 +118,30 @@ def process_photo_analysis_result(result_line, collection):
                         'room_type': photo_analysis.get('room_type', 'unknown')
                     }
                     
-                    analysed_photos.append(photo_data)
-                    
                     # Select high-quality indoor photos without policy violations or people
                     if (photo_data['is_indoor'] and 
                         not photo_data['is_violating_policy'] and 
                         not photo_data['is_human_in_photo'] and
                         photo_data['quality_score'] > 40):
-                        selected_photos.append(photo_data)
+                        try:
+                            response = requests.get(photo_data['url'], timeout=10)
+                            if response.status_code == 200:
+                                name = photo_data['url'].split('/')[-1].split('?')[0]
+                                blob_info = upload('props', name, response.content, 
+                                                response.headers.get('content-type'))
+                                photo_data['blob_url'] = blob_info.get('blob_url')
+                        except Exception as e:
+                            print(f"Error downloading photo: {photo_data['url']} : {e}")
+                    
+                    analysed_photos.append(photo_data)
             
-            # Sort selected photos by quality score
-            selected_photos.sort(key=lambda x: x['quality_score'], reverse=True)
-            
-            # Take top 10 or all if less than 10 qualify
-            top_photos = selected_photos[:10]
-            
-            # If no photos meet criteria, take top 5 by quality score from all analyzed
-            if len(top_photos) == 0:
-                analysed_photos.sort(key=lambda x: x['quality_score'], reverse=True)
-                top_photos = analysed_photos[:5]
-            
-            # Optionally download and upload to Azure Blob Storage
-            downloaded_photos = []
-            for photo in top_photos[:10]:  # Limit to 10
-                try:
-                    response = requests.get(photo['url'], timeout=10)
-                    if response.status_code == 200:
-                        name = photo['url'].split('/')[-1].split('?')[0]
-                        blob_info = upload('props', name, response.content, 
-                                         response.headers.get('content-type'))
-                        photo['blob_url'] = blob_info.get('blob_url')
-                        downloaded_photos.append(photo)
-                except Exception as e:
-                    print(f"Error downloading photo: {e}")
-            
+            analysed_photos.sort(key=lambda x: x['quality_score'], reverse=True)
+
             # Update MongoDB
             update_data = {
                 'status': 'photo_analysed',
                 'photo_analysis_status': 'completed',
                 'analysed_photos': analysed_photos,
-                'selected_photos': top_photos,
-                'downloaded_photos': downloaded_photos,
-                'selected_photos_count': len(top_photos)
             }
             
             collection.update_one(
@@ -168,7 +149,7 @@ def process_photo_analysis_result(result_line, collection):
                 {'$set': update_data}
             )
             
-            print(f"✓ Updated {source_id}: {len(analysed_photos)} analyzed, {len(top_photos)} selected, {len(downloaded_photos)} downloaded")
+            print(f"✓ Updated {source_id}: {len(analysed_photos)} analyzed")
             return True
             
         except json.JSONDecodeError as e:
