@@ -1,142 +1,151 @@
 import os
-import time
-from urllib import response
+import uuid
+import json
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from azure.ai.contentunderstanding import ContentUnderstandingClient
-from azure.ai.contentunderstanding.models import (
-    ContentAnalyzerConfig, 
-    ContentFieldSchema, 
-    ContentFieldDefinition
-)
-from azure.core.credentials import AzureKeyCredential
-import requests
-from models.prop import Prop
-from utils.azure_blob import upload
 
 load_dotenv()
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
-AZURE_CONTENT_UNDERSTANDING_ENDPOINT = os.getenv("AZURE_CONTENT_UNDERSTANDING_ENDPOINT")
-AZURE_CONTENT_UNDERSTANDING_KEY = os.getenv("AZURE_CONTENT_UNDERSTANDING_KEY")
+ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 
-client = ContentUnderstandingClient(AZURE_CONTENT_UNDERSTANDING_ENDPOINT, AzureKeyCredential(AZURE_CONTENT_UNDERSTANDING_KEY))
+dir = os.path.dirname(os.path.abspath(__file__))
+artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
+folder = os.path.join(artifacts, 'photo_analysis')
 
-field_schema = ContentFieldSchema(
-    fields={
-        "image_description": ContentFieldDefinition(
-            type="string", 
-            method="generate", 
-            description="A detailed description of the main subject."
-        ),
-        "is_indoor": ContentFieldDefinition(
-            type="boolean",
-            method="generate",
-            description="Whether the photo is taken outdoors or indoors."
-        ),
-        "is_human_in_the_photo": ContentFieldDefinition(
-            type="boolean",
-            method="generate",
-            description="Whether there is a human in the photo."
-        ),
-        "is_violating_policy": ContentFieldDefinition(
-            type="boolean",
-            method="generate",
-            description="True if the image contains adult content, nudity, or graphic violence."
-        ),
-        "detected_objects": ContentFieldDefinition(
-            type="array",
-            method="generate",
-            item_definition=ContentFieldDefinition(
-                type="string",
-                description="List of specific objects found in the image."
-            )
-        )
-    }
-)
+# Create necessary folders
+os.makedirs(os.path.join(folder, 'batch_files'), exist_ok=True)
+os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
+os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 
-batch_size = 10
+batch_size = 50
 
-def check_batch(collection, filter, skip=0, limit=batch_size):
-    properties = collection.find(filter).sort("updated_at", 1).skip(skip).limit(limit)
-    count = 0
-    for prop in properties:
-        count += 1
-        image_links_to_analyze = prop.get('v1_extracted_data', {}).get('photo_urls', [])
+def gen_batch_code():
+    return str(uuid.uuid4())
 
-        for photo in prop.get('image_links', []):
-            if photo not in image_links_to_analyze:
-                image_links_to_analyze.append(photo)
+def create_photo_analysis_prompt(photo_urls):
+    """Create prompt for GPT-4o mini to analyze property photos with low detail mode."""
+    system_content = """You are a property photo analysis expert. Analyze the provided property photos and return a JSON object with a "photos" array containing details for each photo in the same order.
 
-        if len(image_links_to_analyze) > 0:
-            analyzer_id = f'{prop["source_id"]}-image-analyzer'
-            config = ContentAnalyzerConfig(
-                base_analyzer_id="prebuilt-image",
-                field_schema=field_schema
-            )
+For each photo, extract:
+- image_description: Detailed description of what's shown in the photo
+- is_indoor: Boolean indicating if the photo is taken indoors
+- is_human_in_photo: Boolean indicating if there are people visible
+- is_violating_policy: Boolean indicating if image contains inappropriate content (adult content, nudity, violence)
+- detected_objects: Array of specific objects/furniture found in the image
+- quality_score: Number 0-100 indicating photo quality (clarity, lighting, composition)
+- room_type: String identifying the room type (e.g., "living_room", "bedroom", "kitchen", "bathroom", "exterior", "view")
 
-            print(f"Building analyzer: {analyzer_id}...")
-            poller = client.begin_create_analyzer(analyzer_id=analyzer_id, config=config)
-            poller.result() # Wait for the analyzer to be ready
+Return ONLY valid JSON in this format: {"photos": [{...}, {...}, ...]}"""
 
-            analyze_poller = client.begin_analyze_batch(
-                analyzer_id=analyzer_id,
-                content_urls=image_links_to_analyze
-            )
+    # Build content array with text and images using low detail mode
+    user_content = [
+        {
+            "type": "text",
+            "text": f"Analyze these {len(photo_urls)} property photos in order and provide detailed information for each. Return JSON with a 'photos' array."
+        }
+    ]
+    
+    # Add each image with low detail mode (85 tokens each)
+    for url in photo_urls:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": url,
+                "detail": "low"
+            }
+        })
 
-            analysed_photos = []
-            batch_result = analyze_poller.result()
-            for entry in batch_result.values:
-                if entry.fields:
-                    desc = entry.fields.get("image_description")
-                    is_indoor = entry.fields.get("is_indoor")
-                    is_human_in_the_photo = entry.fields.get("is_human_in_the_photo")
-                    is_violating_policy = entry.fields.get("is_violating_policy")
-                    objects = entry.fields.get("detected_objects")
-                    photo_data = {
-                        "origin_url": entry.content_url,
-                        "description": desc.value if desc else None,
-                        "is_indoor": is_indoor.value if is_indoor else None,
-                        "is_violating_policy": is_violating_policy.value if is_violating_policy else None,
-                        "is_human_in_the_photo": is_human_in_the_photo.value if is_human_in_the_photo else None,
-                        "objects": objects.value if objects else None,
-                    }
-                    if photo_data['is_indoor'] and not photo_data['is_violating_policy'] and not photo_data['is_human_in_the_photo']:
-                        response = requests.get(photo_data['origin_url'])
-                        if response.status_code == 200:
-                            name = photo_data['origin_url'].split('/')[-1].split('?')[0]
-                            photo_data['blob_url'] = upload('props', name, response.content, response.headers.get('content-type'))
-                    analysed_photos.append(photo_data)
-            collection.update_one(
-                { 'source_id': prop['source_id'] },
-                { 
-                    '$set': { 
-                        'status': "photo_analysed", 
-                        'analysed_photos': analysed_photos 
-                    }   
-                }
-            )
-            print(f"Updated place {prop['source_id']} to photo_analysed due to missing photo URLs.")
-    if count < limit:
-        return False
-    return True
+    return [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": user_content}
+    ]
 
 def main():
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
     collection = db['props']
 
+    # Find properties ready for photo analysis
     f = {
         'status': "data_extracted",
+        'v1_extracted_data.photo_urls': { '$exists': True },
+        'photo_analysis_batch_code': { '$exists': False },
     }
-    skip = 0
-    while True:
-        if not check_batch(collection, f, skip=skip):
-            break
-        skip += batch_size
-        time.sleep(2)  # Wait for page load
-    print("Completed.")
+
+    count = collection.count_documents(f)
+
+    if count == 0:
+        print("No properties found for photo analysis.")
+        client.close()
+        return
+
+    print(f"Found {count} properties for photo analysis.")
+    
+    properties = collection.find(f).sort("updated_at", 1).limit(batch_size)
+
+    batch_code = gen_batch_code()
+    batch_file_path = os.path.join(folder, 'batch_files', f"batch-{batch_code}.jsonl")
+    
+    processed_count = 0
+    
+    with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
+        for prop in properties:
+            photo_urls = prop.get('v1_extracted_data', {}).get('photo_urls', [])
+            
+            # Also include any existing image_links
+            existing_links = prop.get('image_links', [])
+            for link in existing_links:
+                if link not in photo_urls:
+                    photo_urls.append(link)
+            
+            if not photo_urls or len(photo_urls) == 0:
+                print(f"Skipping {prop['source_id']} - no photos found.")
+                continue
+            
+            # Limit to first 20 photos to avoid token limits
+            photo_urls = photo_urls[:20]
+            
+            messages = create_photo_analysis_prompt(photo_urls)
+            
+            row = {
+                "custom_id": f"photo-{prop['source_id']}",
+                "method": "POST",
+                "url": "/chat/completions",
+                "body": {
+                    "model": "gpt-4o-mini-batch",
+                    "messages": messages,
+                    "max_tokens": 4000,
+                    "temperature": 0.3,
+                    "response_format": { "type": "json_object" }
+                }
+            }
+            
+            batch_file.write(f"{json.dumps(row)}\n")
+            
+            # Mark property with batch code
+            collection.update_one(
+                { 'source_id': prop['source_id'] },
+                { 
+                    '$set': { 
+                        'photo_analysis_batch_code': batch_code,
+                        'photo_analysis_status': 'batch_created'
+                    } 
+                }
+            )
+            
+            processed_count += 1
+            print(f"Added {prop['source_id']} to batch (photos: {len(photo_urls)})")
+    
+    print(f"\nBatch file created: {batch_file_path}")
+    print(f"Processed {processed_count} properties")
+    print(f"Batch code: {batch_code}")
+    print(f"\nNext steps:")
+    print(f"1. Run: python 21_photo_analysis_batch_upload.py")
+    print(f"2. Run: python 22_photo_analysis_batch_track.py")
+    print(f"3. Run: python 23_photo_analysis_batch_update.py")
+    
     client.close()
 
 if __name__ == '__main__':
-   main()
+    main()
