@@ -28,6 +28,7 @@ def create_photo_analysis_prompt(photo_urls):
     system_content = """You are a property photo analysis expert. Analyze the provided property photos and return a JSON object with a "photos" array containing details for each photo in the same order.
 
 For each photo, extract:
+- original_url: The original photo URL
 - image_description: Detailed description of what's shown in the photo
 - is_indoor: Boolean indicating if the photo is taken indoors
 - is_human_in_photo: Boolean indicating if there are people visible

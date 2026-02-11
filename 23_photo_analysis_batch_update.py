@@ -95,20 +95,15 @@ def process_photo_analysis_result(result_line, collection):
                 print(f"Property not found: {source_id}")
                 return False
             
-            photo_urls = prop.get('v1_extracted_data', {}).get('photo_urls', [])
-            existing_links = prop.get('image_links', [])
-            all_urls = photo_urls + [link for link in existing_links if link not in photo_urls]
-            all_urls = all_urls[:20]  # Match the limit used in batch creation
-            
             # Match analysis results with URLs
             analysed_photos = []
             
             for idx, photo_analysis in enumerate(photos):
-                if idx < len(all_urls):
-                    photo_url = all_urls[idx]
+                photo_url = photo_analysis.get('original_url')
+                if photo_url:
                     
                     photo_data = {
-                        'url': photo_url,
+                        'original_url': photo_url,
                         'description': photo_analysis.get('image_description', ''),
                         'is_indoor': photo_analysis.get('is_indoor', False),
                         'is_human_in_photo': photo_analysis.get('is_human_in_photo', False),
@@ -123,14 +118,14 @@ def process_photo_analysis_result(result_line, collection):
                         not photo_data['is_human_in_photo'] and
                         photo_data['quality_score'] > 40):
                         try:
-                            response = requests.get(photo_data['url'], timeout=10)
+                            response = requests.get(photo_data['original_url'], timeout=10)
                             if response.status_code == 200:
-                                name = photo_data['url'].split('/')[-1].split('?')[0]
+                                name = photo_data['original_url'].split('/')[-1].split('?')[0]
                                 blob_info = upload('props', name, response.content, 
                                                 response.headers.get('content-type'))
                                 photo_data['blob_url'] = blob_info.get('blob_url')
                         except Exception as e:
-                            print(f"Error downloading photo: {photo_data['url']} : {e}")
+                            print(f"Error downloading photo: {photo_data['original_url']} : {e}")
                     
                     analysed_photos.append(photo_data)
             
