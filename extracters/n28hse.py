@@ -12,6 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from models.prop import Prop
 # from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from utils.uc_driver import create_uc_driver
 
 load_dotenv()
 
@@ -262,12 +263,12 @@ def extract():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = uc.Chrome(options=options, use_subprocess=True, version_main=145)
+    driver = create_uc_driver(options=options, use_subprocess=True, version_main=144)
 
     options2 = uc.ChromeOptions()
     options2.add_argument('--no-sandbox')
     options2.add_argument('--disable-dev-shm-usage')
-    driver2 = uc.Chrome(options=options2, use_subprocess=True, version_main=145)
+    driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=144)
 
     extract_rent(db, driver, driver2)
     extract_sell(db, driver, driver2)
