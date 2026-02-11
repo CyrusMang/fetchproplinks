@@ -128,7 +128,7 @@ def extract_rent(db, driver1, driver2):
     init_page = 1
     while True:
         fetch_link()
-        time.sleep(3)
+        time.sleep(7)
         init_page += 1
         has_next = go_next_page(init_page)
         if not has_next:
