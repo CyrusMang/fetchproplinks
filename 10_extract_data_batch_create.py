@@ -13,7 +13,7 @@ dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
 folder = os.path.join(artifacts, 'extract_data')
 
-batch_size = 10
+batch_size = 50
 
 def system_prompt(body):
     return f"""

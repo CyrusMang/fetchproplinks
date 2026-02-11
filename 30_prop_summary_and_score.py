@@ -18,12 +18,12 @@ os.makedirs(os.path.join(folder, 'batch_files'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 
-batch_size = 100
+batch_size = 50
 
 def gen_batch_code():
     return str(uuid.uuid4())
 
-def create_summary_prompt(prop_data, photo_analysis):
+def create_summary_prompt(prop_data):
     """Create prompt for GPT-4o nano to summarize property and evaluate quality."""
     
     system_content = """You are a property data quality analyst. Analyze the property information and photos, then provide a comprehensive summary and quality score.
@@ -118,9 +118,8 @@ def main():
     with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
         for prop in properties:
             # Get photo analysis data
-            photo_analysis = prop.get('analysed_photos', [])
             
-            messages = create_summary_prompt(prop, photo_analysis)
+            messages = create_summary_prompt(prop)
             
             row = {
                 "custom_id": f"summary-{prop['source_id']}",

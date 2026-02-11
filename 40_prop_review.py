@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import time
 from pymongo import MongoClient
@@ -28,7 +29,10 @@ def check_batch(collection, driver, filter, skip=0, limit=batch_size):
         except:
             collection.update_one(
                 { 'source_id': prop['source_id'] },
-                { '$set': { 'status': "archived" } }
+                { '$set': { 
+                    'status': "archived", 
+                    "updated_at": datetime.now().timestamp(), 
+                } }
             )
             print(f"Archived place {prop['source_id']} due to inaccessible URL.")
         count += 1
@@ -48,7 +52,6 @@ def main():
 
     f = {
         'type': "apartment",
-        'source_channel': 'house730',
         'status': { "$ne": "archived" },
     }
     skip = 0
