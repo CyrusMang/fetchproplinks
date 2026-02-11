@@ -36,11 +36,11 @@ def main():
    db = client['prop_main']
    collection = db['props']
    props = collection.find({
-      'v1_extracted_data.summary': { '$exists': True },
-      'v1_embedding': { '$exists': False },
+      'property_summary': { '$exists': True },
+      'status': "summarized",
    }).sort("updated_at", -1).limit(batch_size)
    for prop in props:
-      text = prop['v1_extracted_data']['summary']
+      text = prop['property_summary']
       if not text or len(text) < 10:
          continue
       # chunks = text_split(text)

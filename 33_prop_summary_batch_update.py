@@ -1,10 +1,8 @@
 import os
 import json
-import requests
 from openai import AzureOpenAI
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from utils.azure_blob import upload
 
 load_dotenv()
 
@@ -16,7 +14,7 @@ ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
-folder = os.path.join(artifacts, 'photo_analysis')
+folder = os.path.join(artifacts, 'prop_summary')
 
 def get_completed_batches(folder_path):
     """Get all completed batch files."""
@@ -55,14 +53,14 @@ def download_batch_results(client, batch_info, batch_code):
         print(f"Error downloading results: {e}")
         return None
 
-def process_photo_analysis_result(result_line, collection):
-    """Process a single photo analysis result and update MongoDB."""
+def process_summary_result(result_line, collection):
+    """Process a single summary result and update MongoDB."""
     try:
         data = json.loads(result_line)
         custom_id = data.get('custom_id')
         
-        # Extract source_id from custom_id (format: photo-{source_id})
-        source_id = custom_id.replace('photo-', '')
+        # Extract source_id from custom_id (format: summary-{source_id})
+        source_id = custom_id.replace('summary-', '')
         
         # Get the response
         response = data.get('response', {})
@@ -78,68 +76,20 @@ def process_photo_analysis_result(result_line, collection):
         
         # Parse the JSON response
         try:
-            analysis_result = json.loads(content)
+            summary_data = json.loads(content)
             
-            # Handle both direct array and wrapped object responses
-            if isinstance(analysis_result, dict) and 'photos' in analysis_result:
-                photos = analysis_result['photos']
-            elif isinstance(analysis_result, list):
-                photos = analysis_result
-            else:
-                print(f"Unexpected response format for {source_id}")
-                return False
-            
-            # Get property to match photo URLs
-            prop = collection.find_one({'source_id': source_id})
-            if not prop:
-                print(f"Property not found: {source_id}")
-                return False
-            
-            photo_urls = prop.get('v1_extracted_data', {}).get('photo_urls', [])
-            existing_links = prop.get('image_links', [])
-            all_urls = photo_urls + [link for link in existing_links if link not in photo_urls]
-            all_urls = all_urls[:20]  # Match the limit used in batch creation
-            
-            # Match analysis results with URLs
-            analysed_photos = []
-            
-            for idx, photo_analysis in enumerate(photos):
-                if idx < len(all_urls):
-                    photo_url = all_urls[idx]
-                    
-                    photo_data = {
-                        'url': photo_url,
-                        'description': photo_analysis.get('image_description', ''),
-                        'is_indoor': photo_analysis.get('is_indoor', False),
-                        'is_human_in_photo': photo_analysis.get('is_human_in_photo', False),
-                        'is_violating_policy': photo_analysis.get('is_violating_policy', False),
-                        'detected_objects': photo_analysis.get('detected_objects', []),
-                        'quality_score': photo_analysis.get('quality_score', 0),
-                        'room_type': photo_analysis.get('room_type', 'unknown')
-                    }
-                    
-                    # Select high-quality indoor photos without policy violations or people
-                    if (not photo_data['is_violating_policy'] and 
-                        not photo_data['is_human_in_photo'] and
-                        photo_data['quality_score'] > 40):
-                        try:
-                            response = requests.get(photo_data['url'], timeout=10)
-                            if response.status_code == 200:
-                                name = photo_data['url'].split('/')[-1].split('?')[0]
-                                blob_info = upload('props', name, response.content, 
-                                                response.headers.get('content-type'))
-                                photo_data['blob_url'] = blob_info.get('blob_url')
-                        except Exception as e:
-                            print(f"Error downloading photo: {photo_data['url']} : {e}")
-                    
-                    analysed_photos.append(photo_data)
-            
-            analysed_photos.sort(key=lambda x: x['quality_score'], reverse=True)
+            overall_score = summary_data.get('overall_score', 0)
 
             # Update MongoDB
             update_data = {
-                'status': 'photo_analysed',
-                'analysed_photos': analysed_photos,
+                'status': 'summarized',
+                'property_summary': summary_data.get('summary', ''),
+                'quality_scores': {
+                    'data_completeness': summary_data.get('data_completeness_score', 0),
+                    'data_quality': summary_data.get('data_quality_score', 0),
+                    'photo_quality': summary_data.get('photo_quality_score', 0),
+                    'overall': overall_score
+                }
             }
             
             collection.update_one(
@@ -147,7 +97,7 @@ def process_photo_analysis_result(result_line, collection):
                 {'$set': update_data}
             )
             
-            print(f"✓ Updated {source_id}: {len(analysed_photos)} analyzed")
+            print(f"✓ Updated {source_id}: Score {overall_score}/100 ")
             return True
             
         except json.JSONDecodeError as e:
@@ -175,13 +125,10 @@ def main():
     
     if not completed_batches:
         print("No completed batches found.")
-        print("Run 22_photo_analysis_batch_track.py to check batch status first.")
+        print("Run 32_prop_summary_batch_track.py to check batch status first.")
         return
     
     print(f"Found {len(completed_batches)} completed batch(es)\n")
-    
-    total_processed = 0
-    total_succeeded = 0
     
     for batch_file_path in completed_batches:
         with open(batch_file_path, 'r', encoding='utf-8') as f:
@@ -202,18 +149,7 @@ def main():
         with open(result_file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.strip():
-                    total_processed += 1
-                    if process_photo_analysis_result(line, collection):
-                        total_succeeded += 1
-        
-        print()
-    
-    print("=" * 50)
-    print("SUMMARY")
-    print("=" * 50)
-    print(f"Total results processed: {total_processed}")
-    print(f"Successfully updated: {total_succeeded}")
-    print(f"Failed: {total_processed - total_succeeded}")
+                    process_summary_result(line, collection)
     
     mongo_client.close()
 

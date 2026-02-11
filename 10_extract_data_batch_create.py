@@ -53,8 +53,7 @@ Extract the useful information and summarize about the property into the followi
     "additional_information_in_json": {{ "key": "value", ...}},
     "information_updated_date": "string",
     "posted_date": "string",
-    "post_updated_date": "string",
-    "summary": "string"
+    "post_updated_date": "string"
 }}
 """
 
