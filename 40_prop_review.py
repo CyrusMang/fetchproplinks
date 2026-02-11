@@ -1,10 +1,9 @@
-from datetime import datetime
+from datetime import datetime, time
 import os
-import time
+import undetected_chromedriver as uc
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from selenium.webdriver.support.ui import WebDriverWait
-import undetected_chromedriver as uc
+from reviewers import n28hse, house730
 
 load_dotenv()
 
@@ -12,29 +11,19 @@ MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
 
 batch_size = 3000
 
-def check_batch(collection, driver, filter, skip=0, limit=batch_size):
-    properties = collection.find(filter).skip(skip).limit(limit)
+def check_batch(db, driver, filter, skip=0, limit=batch_size):
+    properties = db['props'].find(filter).skip(skip).limit(limit)
     count = 0
+    sleep_counter = 0
     for prop in properties:
-        try:
-            driver.get(prop['source_url'])
-
-            time.sleep(3) 
-
-            current_url = driver.current_url
-            if current_url == prop['source_url'] or current_url == prop['source_url'] + "/":
-                print(f"Place {prop['source_id']} is still accessible.")
-            else:
-                raise Exception("URL redirected, likely inaccessible.")
-        except:
-            collection.update_one(
-                { 'source_id': prop['source_id'] },
-                { '$set': { 
-                    'status': "archived", 
-                    "updated_at": datetime.now().timestamp(), 
-                } }
-            )
-            print(f"Archived place {prop['source_id']} due to inaccessible URL.")
+        sleep_counter += 1
+        if sleep_counter >= 30:
+            time.sleep(5)
+            sleep_counter = 0
+        if prop['source_channel'] == 'house730':
+            house730.review(db, driver, prop)
+        elif prop['source_channel'] == '28hse':
+            n28hse.review(db, driver, prop)
         count += 1
     if count < limit:
         return False
@@ -43,7 +32,6 @@ def check_batch(collection, driver, filter, skip=0, limit=batch_size):
 def main():
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
-    collection = db['props']
 
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
@@ -52,15 +40,16 @@ def main():
 
     f = {
         'type': "apartment",
+        'source_channel': { "$in": ["house730"] },
         'status': { "$ne": "archived" },
     }
     skip = 0
     while True:
-        if not check_batch(collection, driver, f, skip=skip):
+        if not check_batch(db, driver, f, skip=skip):
             break
         skip += batch_size
-    driver.quit()
     print("Review completed.")
+    driver.quit()
     client.close()
 
 if __name__ == '__main__':
