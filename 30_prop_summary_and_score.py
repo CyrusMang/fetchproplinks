@@ -95,6 +95,7 @@ def main():
     # Find properties ready for summarization
     f = {
         'status': 'photo_analysed',
+        'analysed_photos.blob_url': { '$exists': True },
         'v1_extracted_data': {'$exists': True},
         'summary_batch_code': {'$exists': False}
     }
@@ -126,7 +127,7 @@ def main():
                 "method": "POST",
                 "url": "/chat/completions",
                 "body": {
-                    "model": "gpt-4o-mini",
+                    "model": "gpt-4.1-nano",
                     "messages": messages,
                     "max_tokens": 1000,
                     "temperature": 0.3,

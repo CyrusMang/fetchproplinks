@@ -212,7 +212,7 @@ def main():
                         total_succeeded += 1
         
         print()
-        #remove_file(batch_file_path)
+        remove_file(batch_file_path)
         #remove_file(result_file_path)
     
     print("=" * 50)

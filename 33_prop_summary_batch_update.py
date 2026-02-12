@@ -158,7 +158,7 @@ def main():
                 if line.strip():
                     process_summary_result(line, collection)
         
-        remove_file(batch_file_path)
+        #remove_file(batch_file_path)
         #remove_file(result_file_path)
     
     mongo_client.close()
