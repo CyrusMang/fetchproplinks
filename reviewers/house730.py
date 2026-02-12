@@ -5,11 +5,10 @@ from models.prop import Prop
 
 def review(db, driver, prop):
     still_accessible = False
+    driver.get(prop['source_url'])
+
+    time.sleep(3) 
     try:
-        driver.get(prop['source_url'])
-
-        time.sleep(3) 
-
         current_url = driver.current_url
         if current_url == prop['source_url'] or current_url == prop['source_url'] + "/":
             try:

@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import cloudscraper
 from openai import AzureOpenAI
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -17,6 +18,8 @@ ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
 folder = os.path.join(artifacts, 'photo_analysis')
+
+scraper = cloudscraper.create_scraper()
 
 def get_completed_batches(folder_path):
     """Get all completed batch files."""
@@ -118,12 +121,12 @@ def process_photo_analysis_result(result_line, collection):
                         not photo_data['is_human_in_photo'] and
                         photo_data['quality_score'] > 40):
                         try:
-                            response = requests.get(photo_data['original_url'], timeout=10)
-                            if response.status_code == 200:
-                                name = photo_data['original_url'].split('/')[-1].split('?')[0]
-                                blob_info = upload('props', name, response.content, 
-                                                response.headers.get('content-type'))
-                                photo_data['blob_url'] = blob_info.get('blob_url')
+                            response = scraper.get(photo_data['original_url'], stream=True)
+                            response.raise_for_status()
+
+                            name = photo_data['original_url'].split('/')[-1].split('?')[0]
+                            blob_info = upload('props', name, response.content, response.headers.get('content-type'))
+                            photo_data['blob_url'] = blob_info.get('blob_url')
                         except Exception as e:
                             print(f"Error downloading photo: {photo_data['original_url']} : {e}")
                     
@@ -152,6 +155,13 @@ def process_photo_analysis_result(result_line, collection):
     except Exception as e:
         print(f"Error processing result: {e}")
         return False
+
+def remove_file(file_path):
+    try:
+        os.remove(file_path)
+        print(f"Removed file: {file_path}")
+    except Exception as e:
+        print(f"Error removing file {file_path}: {e}")
 
 def main():
     # Initialize clients
@@ -202,6 +212,8 @@ def main():
                         total_succeeded += 1
         
         print()
+        #remove_file(batch_file_path)
+        #remove_file(result_file_path)
     
     print("=" * 50)
     print("SUMMARY")

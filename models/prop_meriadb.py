@@ -169,8 +169,9 @@ class PropMariaDB:
     def create_or_update(db, id, data):
         prop = PropMariaDB.get_by_id(db, id)
         if prop:
-            prop.update(data)
-            print(f"Updated prop {id}")
+            # prop.update(data)
+            # print(f"Updated prop {id}")
+            pass
         else:
             prop = PropMariaDB.create(db, data)
             print(f"Created prop {id}")

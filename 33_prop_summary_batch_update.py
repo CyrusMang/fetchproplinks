@@ -108,6 +108,13 @@ def process_summary_result(result_line, collection):
         print(f"Error processing result: {e}")
         return False
 
+def remove_file(file_path):
+    try:
+        os.remove(file_path)
+        print(f"Removed file: {file_path}")
+    except Exception as e:
+        print(f"Error removing file {file_path}: {e}")
+
 def main():
     # Initialize clients
     openai_client = AzureOpenAI(
@@ -150,6 +157,9 @@ def main():
             for line in f:
                 if line.strip():
                     process_summary_result(line, collection)
+        
+        remove_file(batch_file_path)
+        #remove_file(result_file_path)
     
     mongo_client.close()
 

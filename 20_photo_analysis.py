@@ -28,7 +28,7 @@ def create_photo_analysis_prompt(photo_urls):
     system_content = """You are a property photo analysis expert. Analyze the provided property photos and return a JSON object with a "photos" array containing details for each photo in the same order.
 
 For each photo, extract:
-- original_url: The original photo URL
+- original_url: The original photo URL (use the exact URL provided in the numbered list)
 - image_description: Detailed description of what's shown in the photo
 - is_indoor: Boolean indicating if the photo is taken indoors
 - is_human_in_photo: Boolean indicating if there are people visible
@@ -39,11 +39,14 @@ For each photo, extract:
 
 Return ONLY valid JSON in this format: {"photos": [{...}, {...}, ...]}"""
 
+    # Build numbered URL list for reference
+    url_list = "\n".join([f"{i+1}. {url}" for i, url in enumerate(photo_urls)])
+    
     # Build content array with text and images using low detail mode
     user_content = [
         {
             "type": "text",
-            "text": f"Analyze these {len(photo_urls)} property photos in order and provide detailed information for each. Return JSON with a 'photos' array."
+            "text": f"Analyze these {len(photo_urls)} property photos in order and provide detailed information for each. The photos are numbered below with their URLs. Use the exact URL in the original_url field for each photo.\n\nPhoto URLs:\n{url_list}\n\nReturn JSON with a 'photos' array in the same order."
         }
     ]
     

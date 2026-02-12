@@ -1,4 +1,4 @@
-from datetime import datetime, time
+import time
 import os
 import undetected_chromedriver as uc
 from pymongo import MongoClient
@@ -40,7 +40,7 @@ def main():
 
     f = {
         'type': "apartment",
-        'source_channel': { "$in": ["house730"] },
+        'source_channel': { "$in": ["28hse","house730"] },
         'status': { "$ne": "archived" },
     }
     skip = 0
