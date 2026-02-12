@@ -1,3 +1,4 @@
+from datetime import datetime
 import requests
 
 from utils.azure_blob import upload
@@ -18,6 +19,16 @@ class Prop:
             "v1_extracted_data": { '$exists': True },
         }).skip(skip).limit(limit)
         return [Prop(db, prop) for prop in props_cursor]
+
+    def archive(self):
+        self.db['prop_photos'].update_many(
+            { 'prop_source_id': self.data['source_id'] },
+            { '$set': { 'status': 'archived' } }
+        )
+        self.update({ 
+            'status': 'archived',
+            "updated_at": datetime.now().timestamp(),
+        })
 
     # def download_photos(self):
     #     photo_with_blobs = []

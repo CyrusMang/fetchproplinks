@@ -1,6 +1,6 @@
 import os
 import json
-import requests
+from bson import ObjectId
 import cloudscraper
 from openai import AzureOpenAI
 from pymongo import MongoClient
@@ -64,8 +64,8 @@ def process_photo_analysis_result(result_line, collection):
         data = json.loads(result_line)
         custom_id = data.get('custom_id')
         
-        # Extract source_id from custom_id (format: photo-{source_id})
-        source_id = custom_id.replace('photo-', '')
+        # Extract photo_id from custom_id (format: photo-{photo_id})
+        photo_id = custom_id.replace('photo-', '')
         
         # Get the response
         response = data.get('response', {})
@@ -73,7 +73,7 @@ def process_photo_analysis_result(result_line, collection):
         choices = body.get('choices', [])
         
         if not choices:
-            print(f"No choices found for {source_id}")
+            print(f"No choices found for {photo_id}")
             return False
         
         message = choices[0].get('message', {})
@@ -83,73 +83,43 @@ def process_photo_analysis_result(result_line, collection):
         try:
             analysis_result = json.loads(content)
             
-            # Handle both direct array and wrapped object responses
-            if isinstance(analysis_result, dict) and 'photos' in analysis_result:
-                photos = analysis_result['photos']
-            elif isinstance(analysis_result, list):
-                photos = analysis_result
-            else:
-                print(f"Unexpected response format for {source_id}")
-                return False
-            
             # Get property to match photo URLs
-            prop = collection.find_one({'source_id': source_id})
-            if not prop:
-                print(f"Property not found: {source_id}")
+            photo = collection.find_one({'_id': ObjectId(photo_id)})
+            if not photo:
+                print(f"Photo not found: {photo_id}")
                 return False
-            
-            # Match analysis results with URLs
-            analysed_photos = []
-            
-            for idx, photo_analysis in enumerate(photos):
-                photo_url = photo_analysis.get('original_url')
-                if photo_url:
                     
-                    photo_data = {
-                        'original_url': photo_url,
-                        'description': photo_analysis.get('image_description', ''),
-                        'is_indoor': photo_analysis.get('is_indoor', False),
-                        'is_human_in_photo': photo_analysis.get('is_human_in_photo', False),
-                        'is_violating_policy': photo_analysis.get('is_violating_policy', False),
-                        'detected_objects': photo_analysis.get('detected_objects', []),
-                        'quality_score': photo_analysis.get('quality_score', 0),
-                        'room_type': photo_analysis.get('room_type', 'unknown')
-                    }
-                    
-                    # Select high-quality indoor photos without policy violations or people
-                    if (not photo_data['is_violating_policy'] and 
-                        not photo_data['is_human_in_photo'] and
-                        photo_data['quality_score'] > 40):
-                        try:
-                            response = scraper.get(photo_data['original_url'], stream=True)
-                            response.raise_for_status()
+            # Select high-quality indoor photos without policy violations or people
+            if (analysis_result['is_photo_of_property'] and
+                not analysis_result['is_violating_policy'] and 
+                not analysis_result['is_human_in_photo'] and
+                analysis_result['quality_score'] > 40):
+                try:
+                    response = scraper.get(photo['photo_url'], stream=True)
+                    response.raise_for_status()
 
-                            name = photo_data['original_url'].split('/')[-1].split('?')[0]
-                            blob_info = upload('props', name, response.content, response.headers.get('content-type'))
-                            photo_data['blob_url'] = blob_info.get('blob_url')
-                        except Exception as e:
-                            print(f"Error downloading photo: {photo_data['original_url']} : {e}")
-                    
-                    analysed_photos.append(photo_data)
+                    name = photo['photo_url'].split('/')[-1].split('?')[0]
+                    blob_info = upload('props', name, response.content, response.headers.get('content-type'))
+                    analysis_result['blob_url'] = blob_info.get('blob_url')
+                except Exception as e:
+                    print(f"Error downloading photo: {photo['photo_url']} : {e}")
             
-            analysed_photos.sort(key=lambda x: x['quality_score'], reverse=True)
-
             # Update MongoDB
             update_data = {
+                **analysis_result,
                 'status': 'photo_analysed',
-                'analysed_photos': analysed_photos,
             }
             
             collection.update_one(
-                {'source_id': source_id},
+                {'_id': ObjectId(photo_id)},
                 {'$set': update_data}
             )
             
-            print(f"✓ Updated {source_id}: {len(analysed_photos)} analyzed")
+            print(f"✓ Updated {photo['prop_source_id']}: 1 photo analyzed {photo_id}")
             return True
             
         except json.JSONDecodeError as e:
-            print(f"Error parsing JSON response for {source_id}: {e}")
+            print(f"Error parsing JSON response for {photo['prop_source_id']} - {photo_id}: {e}")
             return False
             
     except Exception as e:
@@ -173,7 +143,7 @@ def main():
     
     mongo_client = MongoClient(MONGODB_CONNECTION_STRING)
     db = mongo_client['prop_main']
-    collection = db['props']
+    collection = db['prop_photos']
     
     # Get completed batches
     completed_batches = get_completed_batches(os.path.join(folder, 'upload_batches'))
