@@ -1,4 +1,3 @@
-from datetime import datetime
 import os
 import json
 from pymongo import MongoClient
@@ -32,7 +31,6 @@ def main():
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
     collection = db['props']
-    photo_collection = db['prop_photos']
 
     files = get_all_files(os.path.join(folder, 'data'))
     if not files:
@@ -51,32 +49,12 @@ def main():
                         raise Exception(f"No source_id found in content: {content}")
                     res_str = content['response']['body']['choices'][0]['message']['content']
                     res_json = json.loads(res_str)
-                    prop = collection.find_one_and_update(
+                    collection.update_one(
                         { 'source_id': source_id },
                         { 
                             '$set': { 'v1_extracted_data': res_json, 'status': 'data_extracted' },
                         }
                     )
-                    existing_links = prop.get('image_links', [])
-                    photo_urls = res_json.get('photo_urls', [])
-                    for link in photo_urls:
-                        if link not in existing_links:
-                            existing_links.append(link)
-                    for photo in res_json.get('photos', []):
-                        photo_collection.insert_one({
-                            'prop_source_id': source_id,
-                            'prop_estate_or_building_name': prop.get('estate_or_building_name'),
-                            'prop_source_channel': prop.get('source_channel'),
-                            'prop_rent_price': prop.get('rent_price'),
-                            'prop_sell_price': prop.get('sell_price'),
-                            'prop_bedrooms': prop.get('bedrooms'),
-                            'prop_district': prop.get('district'),
-                            'prop_summary': prop.get('summary'),
-                            'keywords': prop.get('features', []),
-                            'photo_url': photo,
-                            'status': 'pending_analysis',
-                            'created_at': datetime.now().timestamp(),
-                        })
                     print(f"Updated source {source_id} with extracted data.")
                 except Exception as e:
                     collection.update_one(

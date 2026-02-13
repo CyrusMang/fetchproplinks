@@ -1,5 +1,4 @@
 import os
-from bson import ObjectId
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -35,8 +34,8 @@ def text_split(text):
 def main():
    client = MongoClient(MONGODB_CONNECTION_STRING)
    db = client['prop_main']
-   collection = db['prop_photos']
-   photos = collection.find({
+   photo_collection = db['prop_photos']
+   photos = photo_collection.find({
       'status': "photo_analysed",
    }).sort("updated_at", -1).limit(batch_size)
    for photo in photos:
@@ -52,8 +51,8 @@ def main():
       #    embedding = get_embedding(chunk)
       #    embeddings.append({ 'chunk': chunk, 'embedding': embedding })
       embedding = get_embedding(text)
-      collection.update_one(
-         { '_id': ObjectId(photo['_id']) },
+      photo_collection.update_one(
+         { 'photo_id': photo['photo_id'] },
          { '$set': { 'embedding': embedding } }
       )
       print(f"Updated place {photo['source_id']} with embeddings.")

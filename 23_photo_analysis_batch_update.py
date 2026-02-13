@@ -1,6 +1,5 @@
 import os
 import json
-from bson import ObjectId
 import cloudscraper
 from openai import AzureOpenAI
 from pymongo import MongoClient
@@ -58,7 +57,7 @@ def download_batch_results(client, batch_info, batch_code):
         print(f"Error downloading results: {e}")
         return None
 
-def process_photo_analysis_result(result_line, collection):
+def process_photo_analysis_result(result_line, photo_collection):
     """Process a single photo analysis result and update MongoDB."""
     try:
         data = json.loads(result_line)
@@ -84,7 +83,7 @@ def process_photo_analysis_result(result_line, collection):
             analysis_result = json.loads(content)
             
             # Get property to match photo URLs
-            photo = collection.find_one({'_id': ObjectId(photo_id)})
+            photo = photo_collection.find_one({'photo_id': photo_id})
             if not photo:
                 print(f"Photo not found: {photo_id}")
                 return False
@@ -110,13 +109,13 @@ def process_photo_analysis_result(result_line, collection):
                 'status': 'photo_analysed',
             }
             
-            collection.update_one(
-                {'_id': ObjectId(photo_id)},
+            photo_collection.update_one(
+                {'photo_id': photo_id},
                 {'$set': update_data}
             )
             
             print(f"✓ Updated {photo['prop_source_id']}: 1 photo analyzed {photo_id}")
-            return True
+            return photo['prop_source_id']
             
         except json.JSONDecodeError as e:
             print(f"Error parsing JSON response for {photo['prop_source_id']} - {photo_id}: {e}")
@@ -143,7 +142,8 @@ def main():
     
     mongo_client = MongoClient(MONGODB_CONNECTION_STRING)
     db = mongo_client['prop_main']
-    collection = db['prop_photos']
+    collection = db['props']
+    photo_collection = db['prop_photos']
     
     # Get completed batches
     completed_batches = get_completed_batches(os.path.join(folder, 'upload_batches'))
@@ -174,13 +174,21 @@ def main():
             continue
         
         # Process each result
+        source_ids = set()
         with open(result_file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.strip():
                     total_processed += 1
-                    if process_photo_analysis_result(line, collection):
+                    source_id = process_photo_analysis_result(line, photo_collection)
+                    if source_id:
+                        source_ids.add(source_id)
                         total_succeeded += 1
         
+        collection.update_many(
+            { 'source_id': { '$in': list(source_ids) } },
+            { '$set': { 'status': 'photo_analysed' } }
+        )
+
         print()
         remove_file(batch_file_path)
         #remove_file(result_file_path)

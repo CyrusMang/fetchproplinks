@@ -1,7 +1,7 @@
+from datetime import datetime
 import os
 import uuid
 import json
-from bson import ObjectId
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -19,7 +19,7 @@ os.makedirs(os.path.join(folder, 'batch_files'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 
-batch_size = 500
+batch_size = 50
 
 def gen_batch_code():
     return str(uuid.uuid4())
@@ -63,64 +63,74 @@ Return ONLY valid JSON in this format"""
 def main():
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
-    collection = db['prop_photos']
+    collection = db['props']
+    photo_collection = db['prop_photos']
 
-    # Find properties ready for photo analysis
-    f = {
-        'status': "pending_analysis",
-    }
-
-    count = collection.count_documents(f)
-
-    if count == 0:
-        print("No properties found for photo analysis.")
-        client.close()
-        return
-
-    print(f"Found {count} properties for photo analysis.")
-    
-    photos = collection.find(f).sort("created_at", -1).limit(batch_size)
+    props = collection.find({ 'status': 'data_extracted' }).limit(batch_size)
 
     batch_code = gen_batch_code()
     batch_file_path = os.path.join(folder, 'batch_files', f"batch-{batch_code}.jsonl")
-    
+
     processed_count = 0
-    
+
     with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
-        for photo in photos:
-            messages = create_photo_analysis_prompt(photo['photo_url'])
-            
-            row = {
-                "custom_id": f"photo-{photo['_id']}",
-                "method": "POST",
-                "url": "/chat/completions",
-                "body": {
-                    "model": "gpt-4o-mini-batch",
-                    "messages": messages,
-                    "max_tokens": 4000,
-                    "temperature": 0.3,
-                    "response_format": { "type": "json_object" }
+        for prop in props:
+            links = prop.get('image_links', [])
+            photo_urls = prop.get('v1_extracted_data', {}).get('photo_urls', [])
+            for link in photo_urls:
+                if link not in links:
+                    links.append(link)
+            for link in links:
+                messages = create_photo_analysis_prompt(link)
+                photo_id = str(uuid.uuid4())
+                row = {
+                    "custom_id": f"photo-{photo_id}",
+                    "method": "POST",
+                    "url": "/chat/completions",
+                    "body": {
+                        "model": "gpt-4o-mini-batch",
+                        "messages": messages,
+                        "max_tokens": 4000,
+                        "temperature": 0.3,
+                        "response_format": { "type": "json_object" }
+                    }
                 }
-            }
-            
-            batch_file.write(f"{json.dumps(row)}\n")
-            
-            # Mark property with batch code
+                
+                batch_file.write(f"{json.dumps(row)}\n")
+
+                extracted_data = prop.get('v1_extracted_data', {})
+                
+                existing_photo = photo_collection.find_one({ 'photo_url': link })
+                if existing_photo:
+                    print(f"Photo already exists in collection, skipping: {link}")
+                    continue
+
+                photo_collection.insert_one({
+                    'photo_id': photo_id,
+                    'prop_source_id': prop.get('source_id'),
+                    'prop_estate_or_building_name': extracted_data.get('estate_or_building_name'),
+                    'prop_source_channel': prop.get('source_channel'),
+                    'prop_rent_price': extracted_data.get('rent_price'),
+                    'prop_sell_price': extracted_data.get('sell_price'),
+                    'prop_bedrooms': extracted_data.get('bedrooms'),
+                    'prop_district': extracted_data.get('district'),
+                    'prop_summary': extracted_data.get('summary'),
+                    'keywords': extracted_data.get('features', []),
+                    'photo_url': link,
+                    'photo_analysis_batch_code': batch_code,
+                    'status': 'batch_created',
+                    'created_at': datetime.now().timestamp(),
+                })
+                processed_count += 1
+                print(f"Processed photo for property {prop.get('source_id')} ({photo_id}): {link}")
+
             collection.update_one(
-                { '_id': ObjectId(photo['_id']) },
-                { 
-                    '$set': { 
-                        'photo_analysis_batch_code': batch_code,
-                        'photo_analysis_status': 'batch_created'
-                    } 
-                }
+                { 'source_id': prop.get('source_id') },
+                { '$set': { 'status': 'photo_analysing' } }
             )
-            
-            processed_count += 1
-            print(f"Added {photo['_id']} (source_id: {photo['prop_source_id']})")
     
     print(f"\nBatch file created: {batch_file_path}")
-    print(f"Processed {processed_count} properties")
+    print(f"Processed {processed_count} photos for analysis.")
     print(f"Batch code: {batch_code}")
     print(f"\nNext steps:")
     print(f"1. Run: python 21_photo_analysis_batch_upload.py")
