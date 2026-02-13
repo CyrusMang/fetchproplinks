@@ -26,4 +26,5 @@ def review(db, driver, prop):
         Prop(db, prop).archive()
         print(f"Archived place {prop['source_id']} due to inaccessible URL.")
     else:
+        Prop(db, prop).update({'updated_at': datetime.now().timestamp()})
         print(f"Place {prop['source_id']} is still accessible.")

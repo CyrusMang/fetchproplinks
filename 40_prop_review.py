@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 import os
 import undetected_chromedriver as uc
@@ -9,7 +10,7 @@ load_dotenv()
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
 
-batch_size = 3000
+batch_size = 1000
 
 def check_batch(db, driver, filter, skip=0, limit=batch_size):
     properties = db['props'].find(filter).skip(skip).limit(limit)
@@ -37,10 +38,10 @@ def main():
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     driver = uc.Chrome(options=options, use_subprocess=True, version_main=145)
+    now = datetime.now().timestamp()
 
     f = {
-        'type': "apartment",
-        'source_channel': { "$in": ["28hse","house730"] },
+        'updated_at': { "$lte": now - 3*24*3600 },  # 3 days ago
         'status': { "$ne": "archived" },
     }
     skip = 0

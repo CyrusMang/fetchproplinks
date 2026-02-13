@@ -107,12 +107,13 @@ def main():
 
                 photo_collection.insert_one({
                     'photo_id': photo_id,
+                    'prop_type': prop.get('type'),
                     'prop_source_id': prop.get('source_id'),
-                    'prop_estate_or_building_name': extracted_data.get('estate_or_building_name'),
                     'prop_source_channel': prop.get('source_channel'),
+                    'prop_estate_or_building_name': extracted_data.get('estate_or_building_name'),
                     'prop_rent_price': extracted_data.get('rent_price'),
                     'prop_sell_price': extracted_data.get('sell_price'),
-                    'prop_bedrooms': extracted_data.get('bedrooms'),
+                    'prop_bedrooms': extracted_data.get('number_of_bedrooms'),
                     'prop_district': extracted_data.get('district'),
                     'prop_summary': extracted_data.get('summary'),
                     'keywords': extracted_data.get('features', []),
