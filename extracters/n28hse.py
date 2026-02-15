@@ -177,13 +177,16 @@ def extract_rent(db, driver1, driver2):
         content = driver1.find_element(By.ID, 'main_content')
         search_results_divs = content.find_elements(By.CSS_SELECTOR, '.property_item')
         for div in search_results_divs:
-            detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
-            link = detail_page_link.get_attribute('href')
-            # writer.writerow([link])
             try:
-                extract_details(db, driver2, link)
+                detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
+                link = detail_page_link.get_attribute('href')
+                # writer.writerow([link])
+                try:
+                    extract_details(db, driver2, link)
+                except Exception as e:
+                    print(f"Error extracting details for {link}: {e}")
             except Exception as e:
-                print(f"Error extracting details for {link}: {e}")
+                pass
     
     def go_next_page(num):
         try:
