@@ -128,6 +128,7 @@ def extract_details(db, driver, link):
                 info[remove_html_tags(names[0].text)] = remove_html_tags(values[0].text)
 
     meta = {
+        "id": str(uuid.uuid4()),
         "source_channel": "28hse",
         "source_id": source_id,
         "source_url": link,

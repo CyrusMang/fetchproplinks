@@ -108,6 +108,7 @@ def main():
                 photo_collection.insert_one({
                     'photo_id': photo_id,
                     'prop_type': prop.get('type'),
+                    'prop_id': prop.get('id'),
                     'prop_source_id': prop.get('source_id'),
                     'prop_source_channel': prop.get('source_channel'),
                     'prop_estate_or_building_name': extracted_data.get('estate_or_building_name'),

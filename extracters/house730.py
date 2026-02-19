@@ -62,6 +62,7 @@ def extract_details(db, driver2, link):
     content_body_div = driver2.find_element(By.ID, 'pc-services-detail')
 
     meta = {
+        "id": str(uuid.uuid4()),
         "source_channel": "house730",
         "source_id": source_id,
         "source_url": link,
