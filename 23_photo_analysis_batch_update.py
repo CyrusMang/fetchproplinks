@@ -1,6 +1,7 @@
 import os
 import json
 import cloudscraper
+import mimetypes
 from openai import AzureOpenAI
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -96,8 +97,9 @@ def process_photo_analysis_result(result_line, photo_collection):
                 try:
                     response = scraper.get(photo['photo_url'], stream=True)
                     response.raise_for_status()
-
-                    name = photo['photo_url'].split('/')[-1].split('?')[0]
+                    content_type = response.headers.get('Content-Type', 'image/jpeg')
+                    ext = mimetypes.guess_extension(content_type.split(';')[0].strip())
+                    name = f"{photo_id}.{ext}"
                     blob_info = upload('props', name, response.content, response.headers.get('content-type'))
                     analysis_result['blob_url'] = blob_info.get('blob_url')
                 except Exception as e:
