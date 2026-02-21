@@ -35,7 +35,8 @@ For each photo, extract:
 - is_human_in_photo: Boolean indicating if there are people visible
 - is_violating_policy: Boolean indicating if image contains inappropriate content (adult content, nudity, violence)
 - detected_objects: Array of specific objects/furniture found in the image
-- quality_score: Number 0-100 indicating photo quality (clarity, lighting, composition)
+- photo_quality_score: Number 0-100 indicating photo quality (clarity, lighting, composition)
+- property_quality_score: Number 0-100 indicating the property's quality (cleanliness, maintenance, appeal)
 - room_type: String identifying the room type (e.g., "living_room", "bedroom", "kitchen", "bathroom", "exterior", "view")
 
 Return ONLY valid JSON in this format"""
@@ -77,9 +78,9 @@ def main():
         for prop in props:
             links = prop.get('image_links', [])
             photo_urls = prop.get('v1_extracted_data', {}).get('photo_urls', [])
-            for link in photo_urls:
-                if link not in links:
-                    links.append(link)
+            for l in photo_urls:
+                if l not in links:
+                    links.append(l)
             for link in links:
                 messages = create_photo_analysis_prompt(link)
                 photo_id = str(uuid.uuid4())
