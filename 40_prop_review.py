@@ -10,13 +10,14 @@ load_dotenv()
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
 
-batch_size = 1000
+batch_size = 300
 
 def check_batch(db, driver, filter, skip=0, limit=batch_size):
     properties = db['props'].find(filter).skip(skip).limit(limit)
     count = 0
     sleep_counter = 0
-    for prop in properties:
+    result = list(properties)
+    for prop in result:
         sleep_counter += 1
         if sleep_counter >= 30:
             time.sleep(5)

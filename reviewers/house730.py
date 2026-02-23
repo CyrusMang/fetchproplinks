@@ -3,6 +3,8 @@ from datetime import datetime
 from selenium.webdriver.common.by import By
 from models.prop import Prop
 
+sign_message = '樓盤已過期'
+
 def review(db, driver, prop):
     try:
         driver.get(prop['source_url'])
@@ -18,6 +20,13 @@ def review(db, driver, prop):
             except:
                 still_accessible = True
         else:
+            still_accessible = False
+
+        try:
+            content_body_div = driver.find_element(By.ID, 'pc-services-detail')
+            if sign_message in content_body_div.get_attribute('outerHTML'):
+                still_accessible = False
+        except:
             still_accessible = False
     
         if not still_accessible:
