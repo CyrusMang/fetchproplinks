@@ -28,7 +28,7 @@ Extract the useful information and summarize about the property into the followi
 {{
     "title": "string",
     "description": "string",
-    "estate_or_building_name": "string",
+    "estate_or_building_name": "string"|null,
     "district": "string",
     "floor": "string",
     "features": [ "string", ... ],

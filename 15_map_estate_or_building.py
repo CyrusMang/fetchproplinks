@@ -13,6 +13,13 @@ load_dotenv()
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
 
+housing_types = [
+  "apartment_building",
+  "apartment_complex",
+  "condominium_complex",
+  "housing_complex",
+]
+
 
 def normalize_text(value):
   if not value:
@@ -21,25 +28,18 @@ def normalize_text(value):
   return text if text else None
 
 
-def build_place_queries(prop):
+def build_place_query(prop):
+  prop_type = prop.get('type')
   extracted = prop.get('v1_extracted_data', {})
   estate_or_building_name = normalize_text(extracted.get('estate_or_building_name'))
   district = normalize_text(extracted.get('district'))
 
   if not estate_or_building_name:
-    return []
+    return None
 
-  queries = []
   if district:
-    queries.append(f"{estate_or_building_name}, {district}, Hong Kong")
-  queries.append(f"{estate_or_building_name}, Hong Kong")
-  queries.append(estate_or_building_name)
-
-  unique_queries = []
-  for query in queries:
-    if query not in unique_queries:
-      unique_queries.append(query)
-  return unique_queries
+    return f"{prop_type} {estate_or_building_name}, {district}, Hong Kong"
+  return f"{prop_type} {estate_or_building_name}, Hong Kong"
 
 
 def pick_place(places, estate_or_building_name):
@@ -47,7 +47,7 @@ def pick_place(places, estate_or_building_name):
     return None
 
   search_name = (estate_or_building_name or '').lower()
-  non_region_places = [place for place in places if not place.is_region()]
+  non_region_places = [place for place in places if not place.is_region() and place.data.get('primaryType') in housing_types]
   candidates = non_region_places if non_region_places else places
 
   if search_name:
@@ -70,18 +70,20 @@ def search_estate_place(db, prop):
   if not estate_or_building_name:
     return None
 
-  queries = build_place_queries(prop)
-  for query in queries:
-    try:
-      places = Place.search(db, query, {
-        'regionCode': 'hk',
-        'languageCode': 'zh-HK',
-      })
-      place = pick_place(places, estate_or_building_name)
-      if place:
-        return place
-    except Exception as error:
-      print(f"Place search failed for query '{query}': {error}")
+  query = build_place_query(prop)
+  if not query:
+    return None
+
+  try:
+    places = Place.search(db, query, {
+      'regionCode': 'hk',
+      'languageCode': 'zh-HK',
+    })
+    place = pick_place(places, estate_or_building_name)
+    if place:
+      return place
+  except Exception as error:
+    print(f"Place search failed for query '{query}': {error}")
 
   return None
 
