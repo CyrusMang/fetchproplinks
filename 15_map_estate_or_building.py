@@ -13,11 +13,16 @@ load_dotenv()
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
 
-housing_types = [
+allow_types = [
   "apartment_building",
   "apartment_complex",
   "condominium_complex",
   "housing_complex",
+  "service",
+  "business_center",
+  "premise",
+  "establishment",
+  "point_of_interest",
 ]
 
 
@@ -47,7 +52,8 @@ def pick_place(places, estate_or_building_name):
     return None
 
   search_name = (estate_or_building_name or '').lower()
-  non_region_places = [place for place in places if not place.is_region() and place.data.get('primaryType') in housing_types]
+  non_region_places = [place for place in places if not place.is_region() and place.data.get('primaryType') in allow_types]
+  print(f"Found {len(places)} places, {len(non_region_places)} non-region places for '{estate_or_building_name}'")
   candidates = non_region_places if non_region_places else places
 
   if search_name:
