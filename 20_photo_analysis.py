@@ -66,7 +66,7 @@ def main():
     collection = db['props']
     photo_collection = db['prop_photos']
 
-    props = collection.find({ 'status': 'data_extracted' }).limit(batch_size)
+    props = collection.find({ 'status': 'mapped_to_estate_building' }).limit(batch_size)
 
     batch_code = gen_batch_code()
     batch_file_path = os.path.join(folder, 'batch_files', f"batch-{batch_code}.jsonl")

@@ -1,0 +1,93 @@
+{
+  "essentials_id_only": {
+    "free_cap": null,
+    "fields": [
+      "places.attributions",
+      "places.id",
+      "places.name",
+      "nextPageToken"
+    ]
+  },
+  "pro": {
+    "free_cap": 4900,
+    "fields": [
+      "places.accessibilityOptions",
+      "places.addressComponents",
+      "places.addressDescriptor",
+      "places.adrFormatAddress",
+      "places.businessStatus",
+      "places.containingPlaces",
+      "places.displayName",
+      "places.formattedAddress",
+      "places.googleMapsLinks",
+      "places.googleMapsUri",
+      "places.iconBackgroundColor",
+      "places.iconMaskBaseUri",
+      "places.location",
+      "places.photos",
+      "places.plusCode",
+      "places.postalAddress",
+      "places.primaryType",
+      "places.primaryTypeDisplayName",
+      "places.pureServiceAreaBusiness",
+      "places.shortFormattedAddress",
+      "places.subDestinations",
+      "places.types",
+      "places.utcOffsetMinutes",
+      "places.viewport"
+    ]
+  },
+  "enterprise": {
+    "free_cap": 950,
+    "fields": [
+      "places.currentOpeningHours",
+      "places.currentSecondaryOpeningHours",
+      "places.internationalPhoneNumber",
+      "places.nationalPhoneNumber",
+      "places.priceLevel",
+      "places.priceRange",
+      "places.rating",
+      "places.regularOpeningHours",
+      "places.regularSecondaryOpeningHours",
+      "places.userRatingCount",
+      "places.websiteUri"
+    ]
+  },
+  "enterprise_atmosphere": {
+    "free_cap": 950,
+    "fields": [
+      "places.allowsDogs",
+      "places.delivery",
+      "places.dineIn",
+      "places.editorialSummary",
+      "places.evChargeAmenitySummary",
+      "places.evChargeOptions",
+      "places.fuelOptions",
+      "places.generativeSummary",
+      "places.goodForChildren",
+      "places.goodForGroups",
+      "places.goodForWatchingSports",
+      "places.liveMusic",
+      "places.menuForChildren",
+      "places.neighborhoodSummary",
+      "places.parkingOptions",
+      "places.paymentOptions",
+      "places.outdoorSeating",
+      "places.reservable",
+      "places.restroom",
+      "places.reviews",
+      "places.reviewSummary",
+      "places.servesBeer",
+      "places.servesBreakfast",
+      "places.servesBrunch",
+      "places.servesCocktails",
+      "places.servesCoffee",
+      "places.servesDessert",
+      "places.servesDinner",
+      "places.servesLunch",
+      "places.servesVegetarianFood",
+      "places.servesWine",
+      "places.takeout"
+    ]
+  }
+}

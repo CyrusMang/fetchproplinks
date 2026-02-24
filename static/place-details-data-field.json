@@ -1,0 +1,98 @@
+{
+  "essentials_id_only": {
+    "free_cap": null,
+    "fields": [
+      "attributions",
+      "id",
+      "name",
+      "photos"
+    ]
+  },
+  "essentials": {
+    "free_cap": 9900,
+    "fields": [
+      "addressComponents",
+      "adrFormatAddress",
+      "formattedAddress",
+      "location",
+      "plusCode",
+      "postalAddress",
+      "shortFormattedAddress",
+      "types",
+      "viewport"
+    ]
+  },
+  "pro": {
+    "free_cap": 5000,
+    "fields": [
+      "accessibilityOptions",
+      "businessStatus",
+      "containingPlaces",
+      "displayName",
+      "googleMapsLinks",
+      "googleMapsUri",
+      "iconBackgroundColor",
+      "iconMaskBaseUri",
+      "primaryType",
+      "primaryTypeDisplayName",
+      "pureServiceAreaBusiness",
+      "subDestinations",
+      "utcOffsetMinutes"
+    ]
+  },
+  "enterprise": {
+    "free_cap": 950,
+    "fields": [
+      "currentOpeningHours",
+      "currentSecondaryOpeningHours",
+      "internationalPhoneNumber",
+      "nationalPhoneNumber",
+      "priceLevel",
+      "priceRange",
+      "rating",
+      "regularOpeningHours",
+      "regularSecondaryOpeningHours",
+      "userRatingCount",
+      "websiteUri"
+    ]
+  },
+  "enterprise_atmosphere": {
+    "free_cap": 950,
+    "fields": [
+      "allowsDogs",
+      "curbsidePickup",
+      "delivery",
+      "dineIn",
+      "editorialSummary",
+      "evChargeAmenitySummary",
+      "evChargeOptions",
+      "fuelOptions",
+      "generativeSummary",
+      "goodForChildren",
+      "goodForGroups",
+      "goodForWatchingSports",
+      "liveMusic",
+      "menuForChildren",
+      "neighborhoodSummary",
+      "parkingOptions",
+      "paymentOptions",
+      "outdoorSeating",
+      "reservable",
+      "restroom",
+      "reviews",
+      "reviewSummary",
+      "routingSummary",
+      "servesBeer",
+      "servesBreakfast",
+      "servesBrunch",
+      "servesCocktails",
+      "servesCoffee",
+      "servesDessert",
+      "servesDinner",
+      "servesLunch",
+      "servesVegetarianFood",
+      "servesWine",
+      "takeout"
+    ]
+  }
+}
