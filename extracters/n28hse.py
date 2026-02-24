@@ -25,7 +25,7 @@ FOLDER = os.path.join(DIR, '..', ARTIFACTS_FOLDER)
 
 settings = {
     "RENT_URL": "https://www.28hse.com/rent",
-    "BUY_URL": "https://www.28hse.com/buy"
+    #"BUY_URL": "https://www.28hse.com/buy"
 }
 
 def remove_html_tags(text):

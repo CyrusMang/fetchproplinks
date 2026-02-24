@@ -35,7 +35,7 @@ For each photo, extract:
 - is_human_in_photo: Boolean indicating if there are people visible
 - is_violating_policy: Boolean indicating if image contains inappropriate content (adult content, nudity, violence)
 - detected_objects: Array of specific objects/furniture found in the image
-- quality_score: Number 0-100 indicating photo and property's quality (clarity, lighting, composition, cleanliness, maintenance, appeal)
+- quality_score: Number 0-100 indicating photo and property's quality (clarity, lighting, composition, cleanliness, newness, maintenance, appeal)
 - room_type: String identifying the room type (e.g., "living_room", "bedroom", "kitchen", "bathroom", "exterior", "view")
 
 Return ONLY valid JSON in this format"""
