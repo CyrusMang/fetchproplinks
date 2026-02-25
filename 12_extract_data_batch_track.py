@@ -36,7 +36,7 @@ def main():
         api_key=OPENAI_API_KEY, 
         api_version=OPENAI_API_VERSION
     )
-    files = get_all_files(os.path.join(folder, 'upload_batchs'))
+    files = get_all_files(os.path.join(folder, 'upload_batches'))
     if not files:
         print("No files found in the folder.")
         return

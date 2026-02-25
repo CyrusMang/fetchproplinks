@@ -51,7 +51,7 @@ def main():
             completion_window="24h"
         )
         batch_code = file_path.split('/')[-1].split('.')[0].replace('batch-', '')
-        uploaded_batch_file_path = os.path.join(folder, 'upload_batchs', f"batch-{batch_code}.json")
+        uploaded_batch_file_path = os.path.join(folder, 'upload_batches', f"batch-{batch_code}.json")
         with open(uploaded_batch_file_path, 'w', encoding='utf-8') as uploaded_batch_file:
             content = {
                 "batch_id": batch_response.id,

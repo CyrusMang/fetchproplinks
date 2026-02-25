@@ -13,6 +13,13 @@ dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
 folder = os.path.join(artifacts, 'extract_data')
 
+# Create necessary folders
+os.makedirs(os.path.join(folder, 'batch_files'), exist_ok=True)
+os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
+os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
+os.makedirs(os.path.join(folder, 'data'), exist_ok=True)
+os.makedirs(os.path.join(folder, 'backup'), exist_ok=True)
+
 batch_size = 50
 
 def system_prompt(body):
@@ -28,7 +35,7 @@ Extract the useful information and summarize about the property into the followi
 {{
     "title": "string",
     "description": "string",
-    "estate_or_building_name": "string"|null,
+    "estate_or_building_name": "string"|null (need to be specified if it's an estate or building, otherwise it should be null),
     "district": "string",
     "floor": "string",
     "features": [ "string", ... ],

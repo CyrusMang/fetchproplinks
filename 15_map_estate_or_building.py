@@ -154,7 +154,9 @@ def process_property(db, prop):
 
 def process_batch(db, batch_size):
   props = list(db['props'].find({
+    'status': "data_extracted",
     'estate_building_id': { '$exists': False },
+    'estate_building_map_error': { '$exists': False },
   }).limit(batch_size))
 
   if not props:
