@@ -52,9 +52,7 @@ def pick_place(places, estate_or_building_name):
     return None
 
   search_name = (estate_or_building_name or '').lower()
-  non_region_places = [place for place in places if not place.is_region() and place.data.get('primaryType') in allow_types]
-  print(f"Found {len(places)} places, {len(non_region_places)} non-region places for '{estate_or_building_name}'")
-  candidates = non_region_places if non_region_places else places
+  candidates = [place for place in places if not place.is_region() and place.data.get('primaryType') in allow_types]
 
   if search_name:
     for place in candidates:
@@ -136,7 +134,6 @@ def process_property(db, prop):
         {'source_id': source_id},
         {'$set': {
           'estate_building_id': building.data.get('id'),
-          'status': 'mapped_to_estate_building',
           'updated_at': now,
         }}
       )
@@ -146,7 +143,7 @@ def process_property(db, prop):
   db['props'].update_one(
     {'source_id': source_id},
     {'$set': {
-      'status': 'estate_building_map_error',
+      'estate_building_map_error': 'not_found',
       'updated_at': now,
     }}
   )
@@ -156,7 +153,7 @@ def process_property(db, prop):
 
 def process_batch(db, batch_size):
   props = list(db['props'].find({
-    'status': 'data_extracted',
+    'estate_building_id': { '$exists': False },
   }).limit(batch_size))
 
   if not props:
@@ -172,7 +169,7 @@ def process_batch(db, batch_size):
       db['props'].update_one(
         {'source_id': source_id},
         {'$set': {
-          'status': 'estate_building_map_error',
+          'estate_building_map_error': 'unexpected_error',
           'updated_at': datetime.now().timestamp(),
         }}
       )
