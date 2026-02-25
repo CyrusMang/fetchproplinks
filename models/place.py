@@ -85,6 +85,11 @@ class Place:
     def is_region(self):
         return any(t in region_types for t in self.data.get('types', []))
 
+    def regions(self):
+        if not self.data.get('addressComponents'):
+            return []
+        return [c for c in self.data['addressComponents'] if c.get('types') and any(t in region_types for t in c['types'])]
+
     def update(self, data):
         update_data = { '$set': data }
         redownload = False

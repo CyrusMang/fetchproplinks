@@ -110,6 +110,7 @@ def create_or_get_estate_building(db, place):
     'place_id': place_id,
     'name': display_name.get('text'),
     'formatted_address': place.data.get('formattedAddress'),
+    'regions': place.regions(),
     'types': place.data.get('types', []),
     'primary_type': place.data.get('primaryType'),
     'location': {

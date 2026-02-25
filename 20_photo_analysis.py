@@ -73,6 +73,8 @@ def main():
 
     processed_count = 0
 
+    estate_building_place_map = {}
+
     with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
         for prop in props:
             links = prop.get('image_links', [])
