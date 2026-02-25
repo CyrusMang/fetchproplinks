@@ -112,6 +112,7 @@ def main():
                     'prop_source_id': prop.get('source_id'),
                     'prop_source_channel': prop.get('source_channel'),
                     'prop_estate_or_building_name': extracted_data.get('estate_or_building_name'),
+                    'prop_estate_or_building_id': extracted_data.get('estate_or_building_id'),
                     'prop_rent_price': extracted_data.get('rent_price'),
                     'prop_sell_price': extracted_data.get('sell_price'),
                     'prop_bedrooms': extracted_data.get('number_of_bedrooms'),
