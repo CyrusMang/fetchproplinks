@@ -105,10 +105,13 @@ def create_or_get_estate_building(db, place):
   display_name = place.data.get('displayName', {})
   location = place.data.get('location', {})
 
+  name = {}
+  name[display_name.get('languageCode', 'zh-HK')] = display_name.get('text')
+
   building_data = {
     'id': str(uuid.uuid4()),
     'place_id': place_id,
-    'name': display_name.get('text'),
+    'name': name,
     'formatted_address': place.data.get('formattedAddress'),
     'regions': place.regions(),
     'types': place.data.get('types', []),
@@ -135,6 +138,7 @@ def process_property(db, prop):
         {'source_id': source_id},
         {'$set': {
           'estate_building_id': building.data.get('id'),
+          'estate_building_regions': building.data.get('regions', []),
           'updated_at': now,
         }}
       )

@@ -83,6 +83,13 @@ def main():
                 if l not in links:
                     links.append(l)
             for link in links:
+                extracted_data = prop.get('v1_extracted_data', {})
+                
+                existing_photo = photo_collection.find_one({ 'source_id': prop.get('source_id'), 'photo_url': link })
+                if existing_photo:
+                    print(f"Photo already exists in collection, skipping: {link}")
+                    continue
+
                 messages = create_photo_analysis_prompt(link)
                 photo_id = str(uuid.uuid4())
                 row = {
@@ -100,13 +107,6 @@ def main():
                 
                 batch_file.write(f"{json.dumps(row)}\n")
 
-                extracted_data = prop.get('v1_extracted_data', {})
-                
-                existing_photo = photo_collection.find_one({ 'photo_url': link })
-                if existing_photo:
-                    print(f"Photo already exists in collection, skipping: {link}")
-                    continue
-
                 photo_collection.insert_one({
                     'photo_id': photo_id,
                     'prop_type': prop.get('type'),
@@ -114,7 +114,8 @@ def main():
                     'prop_source_id': prop.get('source_id'),
                     'prop_source_channel': prop.get('source_channel'),
                     'prop_estate_or_building_name': extracted_data.get('estate_or_building_name'),
-                    'prop_estate_or_building_id': extracted_data.get('estate_or_building_id'),
+                    'prop_estate_or_building_id': prop.get('estate_or_building_id'),
+                    'prop_estate_or_building_regions': prop.get('estate_building_regions', []),
                     'prop_rent_price': extracted_data.get('rent_price'),
                     'prop_sell_price': extracted_data.get('sell_price'),
                     'prop_bedrooms': extracted_data.get('number_of_bedrooms'),
