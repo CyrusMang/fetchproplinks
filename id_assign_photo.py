@@ -15,12 +15,12 @@ batch_size = 1000
 
 def check_batch(db, skip=0, limit=batch_size):
     photos = db['prop_photos'].find({
-        'prop_id': { "$exists": False },
+        # 'prop_id': { "$exists": False },
     }).skip(skip).limit(limit)
     count = 0
     for photo in photos:
         prop = db['props'].find_one({'source_id': photo['prop_source_id']})
-        db['prop_photos'].update_many({'prop_source_id': prop['source_id']}, {'$set': {'prop_id': prop['id']}})
+        db['prop_photos'].update_one({'photo_id': photo['photo_id']}, {'$set': {'prop_id': prop['id']}})
         print(f"Updated prop {photo['prop_source_id']} with new id {prop['id']}")
         count += 1
     if count < limit:

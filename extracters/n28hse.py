@@ -52,15 +52,15 @@ def extract_details(db, driver, link):
 
     driver.get(link)
     wait = WebDriverWait(driver, 10)
-    try:
-        phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
-        phone_element.click()
+    # try:
+    #     phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
+    #     phone_element.click()
 
-        random_number = random.randint(2, 10)
+    #     random_number = random.randint(2, 10)
 
-        time.sleep(random_number)  # Wait for page load
-    except:
-        pass
+    #     time.sleep(random_number)  # Wait for page load
+    # except:
+    #     pass
 
     # page_source = driver.page_source
     # soup = BeautifulSoup(page_source, 'html.parser')
@@ -105,13 +105,13 @@ def extract_details(db, driver, link):
             span_text = span.text
             if '牌照號碼' in span_text:
                 license_no = span_text.replace('代理個人牌照號碼:', '').strip()
-        phones = contact.find_elements(By.CSS_SELECTOR, '[attr="phone"]')
-        wtsapps = contact.find_elements(By.CSS_SELECTOR, '[attr="whatsapp"]')
+        # phones = contact.find_elements(By.CSS_SELECTOR, '[attr="phone"]')
+        # wtsapps = contact.find_elements(By.CSS_SELECTOR, '[attr="whatsapp"]')
         contacts_data.append({
             "name": name,
             "license_no": license_no,
-            "phones": [phone.get_attribute('href') for phone in phones],
-            "wtsapps": [wtsapp.get_attribute('href') for wtsapp in wtsapps],
+            # "phones": [phone.get_attribute('href') for phone in phones],
+            # "wtsapps": [wtsapp.get_attribute('href') for wtsapp in wtsapps],
         })
 
     property_dates_div = content_body_div.find_element(By.CSS_SELECTOR, '.propertyDate')
