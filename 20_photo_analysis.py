@@ -120,7 +120,6 @@ def main():
                     'prop_sell_price': extracted_data.get('sell_price'),
                     'prop_bedrooms': extracted_data.get('number_of_bedrooms'),
                     'prop_district': extracted_data.get('district'),
-                    'prop_summary': extracted_data.get('summary'),
                     'keywords': extracted_data.get('features', []),
                     'photo_url': link,
                     'photo_analysis_batch_code': batch_code,

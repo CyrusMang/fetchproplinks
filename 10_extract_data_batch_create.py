@@ -31,7 +31,7 @@ HTML body of a property details page.
 {body}
 
 Questions: 
-Extract the useful information and summarize about the property into the following JSON format:
+Extract the useful information about the property into the following JSON format:
 {{
     "title": "string",
     "description": "string",
@@ -49,19 +49,11 @@ Extract the useful information and summarize about the property into the followi
     "building_age": number|null,
     "nearby_places": [ "string", ... ],
     "transportation_options": [ "string", ... ],
-    "contacts": [{{
-        "name": "string",
-        "phone": "string",
-        "whatsapp": "string",
-        "is_agent": boolean,
-        "license_no": "string",
-    }}, ... ],
     "additional_notes": "string",
     "additional_information_in_json": {{ "key": "value", ...}},
     "information_updated_date": "string",
     "posted_date": "string",
-    "post_updated_date": "string",
-    "summary": "2-3 sentence summary of the property highlighting key features"
+    "post_updated_date": "string"
 }}
 """
 

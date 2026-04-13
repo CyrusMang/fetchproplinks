@@ -90,20 +90,20 @@ def process_photo_analysis_result(result_line, photo_collection):
                 return False
                     
             # Select high-quality indoor photos without policy violations or people
-            if (analysis_result['is_photo_of_property'] and
-                not analysis_result['is_violating_policy'] and 
-                not analysis_result['is_human_in_photo'] and
-                analysis_result['quality_score'] > 40):
-                try:
-                    response = scraper.get(photo['photo_url'], stream=True)
-                    response.raise_for_status()
-                    content_type = response.headers.get('Content-Type', 'image/jpeg')
-                    ext = mimetypes.guess_extension(content_type.split(';')[0].strip())
-                    name = f"{photo_id}.{ext}"
-                    blob_info = upload('props', name, response.content, response.headers.get('content-type'))
-                    analysis_result['blob_url'] = blob_info.get('blob_url')
-                except Exception as e:
-                    print(f"Error downloading photo: {photo['photo_url']} : {e}")
+            # if (analysis_result['is_photo_of_property'] and
+            #     not analysis_result['is_violating_policy'] and 
+            #     not analysis_result['is_human_in_photo'] and
+            #     analysis_result['quality_score'] > 40):
+            #     try:
+            #         response = scraper.get(photo['photo_url'], stream=True)
+            #         response.raise_for_status()
+            #         content_type = response.headers.get('Content-Type', 'image/jpeg')
+            #         ext = mimetypes.guess_extension(content_type.split(';')[0].strip())
+            #         name = f"{photo_id}.{ext}"
+            #         blob_info = upload('props', name, response.content, response.headers.get('content-type'))
+            #         analysis_result['blob_url'] = blob_info.get('blob_url')
+            #     except Exception as e:
+            #         print(f"Error downloading photo: {photo['photo_url']} : {e}")
             
             # Update MongoDB
             update_data = {
