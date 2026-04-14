@@ -104,7 +104,7 @@ def process_photo_analysis_result(result_line, photo_collection):
             #         analysis_result['blob_url'] = blob_info.get('blob_url')
             #     except Exception as e:
             #         print(f"Error downloading photo: {photo['photo_url']} : {e}")
-            
+
             # Update MongoDB
             update_data = {
                 **analysis_result,

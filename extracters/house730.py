@@ -143,12 +143,12 @@ def extract():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = create_uc_driver(options=options, use_subprocess=True, version_main=144)
+    driver = create_uc_driver(options=options, use_subprocess=True, version_main=146)
 
     options2 = uc.ChromeOptions()
     options2.add_argument('--no-sandbox')
     options2.add_argument('--disable-dev-shm-usage')
-    driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=144)
+    driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=146)
 
     extract_rent(db, driver, driver2)
 

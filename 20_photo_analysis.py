@@ -2,6 +2,7 @@ from datetime import datetime
 import os
 import uuid
 import json
+import cloudscraper
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -20,6 +21,8 @@ os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 
 batch_size = 50
+
+scraper = cloudscraper.create_scraper()
 
 def gen_batch_code():
     return str(uuid.uuid4())
@@ -88,6 +91,12 @@ def main():
                 existing_photo = photo_collection.find_one({ 'source_id': prop.get('source_id'), 'photo_url': link })
                 if existing_photo:
                     print(f"Photo already exists in collection, skipping: {link}")
+                    continue
+                try:
+                    response = scraper.get(link, stream=True)
+                    response.raise_for_status()
+                except Exception as e:
+                    print(f"Error accessing photo: {link} : {e}")
                     continue
 
                 messages = create_photo_analysis_prompt(link)
