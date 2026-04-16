@@ -38,7 +38,7 @@ def main():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = uc.Chrome(options=options, use_subprocess=True, version_main=145)
+    driver = uc.Chrome(options=options, use_subprocess=True, version_main=146)
     now = datetime.now().timestamp()
 
     f = {

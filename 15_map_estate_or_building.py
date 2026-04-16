@@ -186,8 +186,8 @@ def process_batch(db, batch_size):
 
 def main():
   parser = argparse.ArgumentParser(description='Map property records to estate/building records using Google Places.')
-  parser.add_argument('--batch-size', type=int, default=5, help='Number of properties to process per batch.')
-  parser.add_argument('--max-batches', type=int, default=1, help='Max number of batches to run. 0 means run until no records remain.')
+  parser.add_argument('--batch-size', type=int, default=20, help='Number of properties to process per batch.')
+  parser.add_argument('--max-batches', type=int, default=5, help='Max number of batches to run. 0 means run until no records remain.')
   args = parser.parse_args()
 
   client = MongoClient(MONGODB_CONNECTION_STRING)
