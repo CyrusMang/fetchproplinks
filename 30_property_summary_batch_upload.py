@@ -49,8 +49,12 @@ Rules:
 
 Return JSON with this schema:
 {
-  "headline": "string",
-	"executive_summary": "string",
+  "headline_en": "string",
+	"headline_zh_hk": "string",
+	"headline_zh_cn": "string",
+	"executive_summary_en": "string",
+	"executive_summary_zh_hk": "string",
+	"executive_summary_zh_cn": "string",
   "key_highlights": ["string", "..."],
   "possible_concerns": ["string", "..."],
   "price_analysis": {
