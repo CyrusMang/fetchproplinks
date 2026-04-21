@@ -21,6 +21,7 @@ os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 
 batch_size = 50
+max_photos_per_property = 7
 
 scraper = cloudscraper.create_scraper()
 
@@ -37,11 +38,11 @@ For each photo, extract:
 - is_indoor: Boolean indicating if the photo is taken indoors
 - is_human_in_photo: Boolean indicating if there are people visible
 - is_violating_policy: Boolean indicating if image contains inappropriate content (adult content, nudity, violence)
-- detected_objects: Array of specific objects/furniture found in the image
 - quality_score: Number 0-100 indicating photo and property's quality (clarity, lighting, composition, cleanliness, newness, maintenance, appeal)
 - room_type: String identifying the room type (e.g., "living_room", "bedroom", "kitchen", "bathroom", "exterior", "view")
 
 Return ONLY valid JSON in this format"""
+# - detected_objects: Array of specific objects/furniture found in the image
     
     # Build content array with text and images using low detail mode
     user_content = [
@@ -85,7 +86,7 @@ def main():
             for l in photo_urls:
                 if l not in links:
                     links.append(l)
-            for link in links:
+            for link in links[:max_photos_per_property]:
                 extracted_data = prop.get('v1_extracted_data', {})
                 
                 existing_photo = photo_collection.find_one({ 'source_id': prop.get('source_id'), 'photo_url': link })

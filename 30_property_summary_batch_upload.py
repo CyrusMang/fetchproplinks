@@ -70,7 +70,6 @@ Return JSON with this schema:
     "overall_condition": "string",
     "cleanliness_comment": "string|null",
     "brightness_comment": "string|null",
-    "photo_quality_comment": "string|null"
   },
   "recommended_for": ["string", "..."],
   "confidence_score": number
