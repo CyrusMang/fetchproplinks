@@ -110,8 +110,6 @@ def sanitize_photo_data(photo):
 		"detected_objects": photo.get("detected_objects", []),
 		"quality_score": photo.get("quality_score"),
 		"is_indoor": photo.get("is_indoor"),
-		"blob_url": photo.get("blob_url"),
-		"photo_url": photo.get("photo_url"),
 	}
 
 
