@@ -85,7 +85,7 @@ def main():
         client.close()
         return
 
-    properties = collection.find(f).sort("updated_at", -1).limit(batch_size)
+    properties = collection.find(f).sort("created_at", -1).limit(batch_size)
 
     batch_code = gen_batch_code()
     batch_file_path = os.path.join(folder, 'batch_files', f"batch-{batch_code}.jsonl")

@@ -69,6 +69,7 @@ def extract_details(db, driver2, link):
         "type": 'apartment',
         "post_type": prop_post_type,
         "updated_at": datetime.datetime.now().timestamp(),
+        "created_at": datetime.datetime.now().timestamp(),
         "image_links": image_links,
         "source_html_content": content_body_div.get_attribute('outerHTML'),
         "status": "pending_extraction",
@@ -143,12 +144,12 @@ def extract():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = create_uc_driver(options=options, use_subprocess=True, version_main=146)
+    driver = create_uc_driver(options=options, use_subprocess=True, version_main=148)
 
     options2 = uc.ChromeOptions()
     options2.add_argument('--no-sandbox')
     options2.add_argument('--disable-dev-shm-usage')
-    driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=146)
+    driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=148)
 
     extract_rent(db, driver, driver2)
 

@@ -142,7 +142,7 @@ def main():
             "summary_status": "summary_ready",
             "property_embedding": {"$exists": False},
         }
-    ).sort("updated_at", -1).limit(batch_size)
+    ).sort("created_at", -1).limit(batch_size)
 
     processed = 0
     skipped = 0

@@ -85,6 +85,7 @@ def extract_details(db, driver, link):
         "image_links": image_links,
         "thumb_links": thumb_links,
         "updated_at": datetime.datetime.now().timestamp(),
+        "created_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
         "status": "pending_extraction",
     }
@@ -188,12 +189,12 @@ def extract():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = uc.Chrome(options=options, use_subprocess=True, version_main=145)
+    driver = uc.Chrome(options=options, use_subprocess=True, version_main=148)
 
     options2 = uc.ChromeOptions()
     options2.add_argument('--no-sandbox')
     options2.add_argument('--disable-dev-shm-usage')
-    driver2 = uc.Chrome(options=options2, use_subprocess=True, version_main=145)
+    driver2 = uc.Chrome(options=options2, use_subprocess=True, version_main=148)
 
     extract_rent(db, driver, driver2)
     extract_sell(db, driver, driver2)

@@ -162,7 +162,7 @@ def main():
 
 	props = list(
 		prop_collection.find(prop_filter)
-		.sort("updated_at", -1)
+		.sort("created_at", -1)
 		.limit(batch_size)
 	)
 
