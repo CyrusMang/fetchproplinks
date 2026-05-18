@@ -7,6 +7,7 @@ import random
 from pymongo import MongoClient
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from models.prop import Prop
@@ -49,8 +50,8 @@ def extract_details(db, driver, link):
 
     driver.get(link)
     wait = WebDriverWait(driver, 10)
-    photo_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[mediatype="photo"]')))
-    photo_element.click()
+    # photo_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[mediatype="photo"]')))
+    # photo_element.click()
 
     time.sleep(2)  # Wait for page load
 
@@ -58,21 +59,21 @@ def extract_details(db, driver, link):
     # soup = BeautifulSoup(page_source, 'html.parser')
     # text_content = soup.get_text(separator=' ', strip=True)
 
-    image_div = driver.find_element(By.CSS_SELECTOR, "div[class^='SwiperContainer__']")
-    image_links = []
-    images = image_div.find_elements(By.CSS_SELECTOR, '.swiper-slide a img')
-    for img in images:
-        img_src = img.get_attribute('src')
-        if img_src and img_src not in image_links:
-            image_links.append(img_src)
+    # image_div = driver.find_element(By.CSS_SELECTOR, "div[class^='SwiperContainer__']")
+    # image_links = []
+    # images = image_div.find_elements(By.CSS_SELECTOR, '.swiper-slide a img')
+    # for img in images:
+    #     img_src = img.get_attribute('src')
+    #     if img_src and img_src not in image_links:
+    #         image_links.append(img_src)
     
-    thumb_links = []
-    thumbs_div = driver.find_element(By.CSS_SELECTOR, "div[class^='SwiperThumbnails__']")
-    thumbs = thumbs_div.find_elements(By.CSS_SELECTOR, '.swiper-slide div div')
-    for thumb in thumbs:
-        thumb_src = thumb.get_attribute('src')
-        if thumb_src and thumb_src not in thumb_links:
-            thumb_links.append(thumb_src)
+    # thumb_links = []
+    # thumbs_div = driver.find_element(By.CSS_SELECTOR, "div[class^='SwiperThumbnails__']")
+    # thumbs = thumbs_div.find_elements(By.CSS_SELECTOR, '.swiper-slide div div')
+    # for thumb in thumbs:
+    #     thumb_src = thumb.get_attribute('src')
+    #     if thumb_src and thumb_src not in thumb_links:
+    #         thumb_links.append(thumb_src)
 
     content_body_div = driver.find_element(By.CSS_SELECTOR, 'main')
     
@@ -80,10 +81,10 @@ def extract_details(db, driver, link):
         "source_channel": "midland",
         "source_id": source_id,
         "source_url": link,
-        "type": prop_type,
-        "post_type": prop_post_type,
-        "image_links": image_links,
-        "thumb_links": thumb_links,
+        "type": "apartment",
+        "post_type": 'rent',
+        # "image_links": [],
+        # "thumb_links": [],
         "updated_at": datetime.datetime.now().timestamp(),
         "created_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
@@ -107,13 +108,14 @@ def extract_rent(db, driver1, driver2):
     
     # Wait for content to load
     wait = WebDriverWait(driver1, 10)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.rmc-tabs-content-wrap')))
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.sc-10pgf2f-3')))
     
     def fetch_link():
         # with open(file_path, "a") as of:
         #     writer = csv.writer(of)
-        content = driver1.find_element(By.CSS_SELECTOR, '.rmc-tabs-content-wrap')
-        search_results_divs = content.find_element(By.CSS_SELECTOR, 'a[data-gtm-name="ListingPage--Select--Rent"]')
+        content = driver1.find_element(By.CSS_SELECTOR, '.sc-10pgf2f-3')
+        search_results_divs = content.find_elements(By.CSS_SELECTOR, 'a[href*="/property/"]')
+        print(f"Found {len(search_results_divs)} properties in rent page.")
         for div in search_results_divs:
             link = div.get_attribute('href')
             # writer.writerow([link])
@@ -122,17 +124,20 @@ def extract_rent(db, driver1, driver2):
             except Exception as e:
                 print(f"Error extracting details for {link}: {e}")
     
-    def go_next_page(num):
-        try:
-            content = driver1.find_element(By.CSS_SELECTOR, '.rmc-tabs-content-wrap')
-            pagination = content.find_element(By.CSS_SELECTOR, '[role="navigation"]')
-            page_button = pagination.find_element(By.CSS_SELECTOR, '[rel="next"]')
-            if page_button.is_displayed():
-                page_button.click()
-                time.sleep(2)  # Wait for page load
-                return True
-        except:
-            return False
+    def go_next_page():
+        # try:
+        content = driver1.find_element(By.CSS_SELECTOR, '.pagetor')
+        page_button = content.find_element(By.CSS_SELECTOR, 'a[rel="next"]')
+        if page_button.is_displayed():
+            driver1.execute_script("arguments[0].scrollIntoView();", page_button)
+            # ActionChains(driver1).move_to_element(page_button).click().perform()
+            time.sleep(5)  # Wait for page load
+            page_button.click()
+            time.sleep(5)  # Wait for page load
+            return True
+        # except:
+        #     print("No next page button found.")
+        #     return False
         return False
     
     while True:
@@ -142,45 +147,46 @@ def extract_rent(db, driver1, driver2):
         if not has_next:
             break
 
-def extract_sell(db, driver1, driver2):
-    driver1.get(settings["RENT_URL"])
+# def extract_sell(db, driver1, driver2):
+#     driver1.get(settings["SELL_URL"])
     
-    # Wait for content to load
-    wait = WebDriverWait(driver1, 10)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.rmc-tabs-content-wrap')))
+#     # Wait for content to load
+#     wait = WebDriverWait(driver1, 10)
+#     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.rmc-tabs-content-wrap')))
     
-    def fetch_link():
-        # with open(file_path, "a") as of:
-        #     writer = csv.writer(of)
-        content = driver1.find_element(By.CSS_SELECTOR, '.rmc-tabs-content-wrap')
-        search_results_divs = content.find_element(By.CSS_SELECTOR, 'a[data-gtm-name="ListingPage--Select--Rent"]')
-        for div in search_results_divs:
-            link = div.get_attribute('href')
-            # writer.writerow([link])
-            try:
-                extract_details(db, driver2, link)
-            except Exception as e:
-                print(f"Error extracting details for {link}: {e}")
+#     def fetch_link():
+#         # with open(file_path, "a") as of:
+#         #     writer = csv.writer(of)
+#         content = driver1.find_element(By.CSS_SELECTOR, '.rmc-tabs-content-wrap')
+#         search_results_divs = content.find_elements(By.CSS_SELECTOR, 'a[href*="/property/"]')
+#         print(f"Found {len(search_results_divs)} properties in sell page.")
+#         for div in search_results_divs:
+#             link = div.get_attribute('href')
+#             # writer.writerow([link])
+#             try:
+#                 extract_details(db, driver2, link)
+#             except Exception as e:
+#                 print(f"Error extracting details for {link}: {e}")
     
-    def go_next_page(num):
-        try:
-            content = driver1.find_element(By.CSS_SELECTOR, '.rmc-tabs-content-wrap')
-            pagination = content.find_element(By.CSS_SELECTOR, '[role="navigation"]')
-            page_button = pagination.find_element(By.CSS_SELECTOR, '[rel="next"]')
-            if page_button.is_displayed():
-                page_button.click()
-                time.sleep(2)  # Wait for page load
-                return True
-        except:
-            return False
-        return False
+#     def go_next_page():
+#         # try:
+#         content = driver1.find_element(By.CSS_SELECTOR, '.pagetor')
+#         page_button = pagination.find_element(By.CSS_SELECTOR, 'a[rel="next"]')
+#         if page_button.is_displayed():
+#             page_button.click()
+#             time.sleep(2)  # Wait for page load
+#             return True
+#         # except:
+#         #     print("No next page button found.")
+#         #     return False
+#         return False
     
-    while True:
-        fetch_link()
-        time.sleep(3)
-        has_next = go_next_page()
-        if not has_next:
-            break
+#     while True:
+#         fetch_link()
+#         time.sleep(3)
+#         has_next = go_next_page()
+#         if not has_next:
+#             break
 
 def extract():
     client = MongoClient(MONGODB_CONNECTION_STRING)
@@ -197,7 +203,7 @@ def extract():
     driver2 = uc.Chrome(options=options2, use_subprocess=True, version_main=148)
 
     extract_rent(db, driver, driver2)
-    extract_sell(db, driver, driver2)
+    # extract_sell(db, driver, driver2)
 
     driver.quit()
     driver2.quit()
