@@ -72,6 +72,11 @@ def main():
 
     props = collection.find({ 'status': 'data_extracted' }).limit(batch_size)
 
+    if props.count() == 0:
+        print("No properties found for photo analysis.")
+        client.close()
+        return
+
     batch_code = gen_batch_code()
     batch_file_path = os.path.join(folder, 'batch_files', f"batch-{batch_code}.jsonl")
 
