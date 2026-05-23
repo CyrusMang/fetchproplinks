@@ -37,7 +37,7 @@ Extract the useful information about the property into the following JSON format
     "description": "string",
     "estate_or_building_name": "string"|null (need to be specified if it's an estate or building, otherwise it should be null),
     "district": "string",
-    "district_code": "string",
+    "hk_standard_district_en_name": "string" (e.g. "central and western", "wan chai", "eastern", ...),
     "floor": "string",
     "features": [ "string", ... ],
     "photo_urls": [ "string", ... ],
