@@ -1,7 +1,10 @@
 import argparse
 import os
+import time
 import uuid
 from datetime import datetime
+
+import requests
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -28,122 +31,113 @@ allow_types = [
 
 def normalize_text(value):
   if not value:
-    return None
+    return ''
   text = str(value).strip()
-  return text if text else None
-
-
-def build_place_query(prop):
-  prop_type = prop.get('type')
-  extracted = prop.get('v1_extracted_data', {})
-  estate_or_building_name = normalize_text(extracted.get('estate_or_building_name'))
-  district = normalize_text(extracted.get('district'))
-
-  if not estate_or_building_name:
-    return None
-
-  if district:
-    return f"{prop_type} {estate_or_building_name}, {district}, Hong Kong"
-  return f"{prop_type} {estate_or_building_name}, Hong Kong"
+  return text if text else ''
 
 
 def pick_place(places, estate_or_building_name):
-  if not places:
-    return None
-
-  search_name = (estate_or_building_name or '').lower()
-  candidates = [place for place in places if not place.is_region() and place.data.get('primaryType') in allow_types]
-
-  if search_name:
-    for place in candidates:
-      display_name = (place.data.get('displayName', {}).get('text', '') or '').lower()
-      if display_name and display_name == search_name:
-        return place
-
-    for place in candidates:
-      display_name = (place.data.get('displayName', {}).get('text', '') or '').lower()
-      if display_name and search_name in display_name:
-        return place
-
-  return candidates[0]
+  return places[0]
 
 
-def search_estate_place(db, prop):
+def search_estate_address(db, prop):
   extracted = prop.get('v1_extracted_data', {})
   estate_or_building_name = normalize_text(extracted.get('estate_or_building_name'))
-  if not estate_or_building_name:
+  district = normalize_text(extracted.get('district'))
+  if not estate_or_building_name and not district:
+    print(f"no estate_or_building_name or district for property")
     return None
-
-  query = build_place_query(prop)
-  if not query:
-    return None
+  q = f"{district} {estate_or_building_name}" if district else estate_or_building_name
 
   try:
-    places = Place.search(db, query, {
-      'regionCode': 'hk',
-      'languageCode': 'zh-HK',
-    })
-    place = pick_place(places, estate_or_building_name)
-    if place:
-      return place
+    response = requests.get(
+      'https://www.als.gov.hk/lookup',
+      params={'q': q, 'n': 5},
+      headers={
+        'Accept': 'application/json',
+        'Accept-Language': 'en,zh-Hant',
+      },
+      timeout=10,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    suggested = data.get('SuggestedAddress', [])
+    if not suggested:
+      print(f"no suggested address found for query '{q}'")
+      return None
+
+    best = suggested[0]
+    premises = best.get('Address', {}).get('PremisesAddress', {})
+    eng = premises.get('EngPremisesAddress', {})
+    chi = premises.get('ChiPremisesAddress', {})
+    geo = premises.get('GeospatialInformation', {})
+    score = best.get('ValidationInformation', {}).get('Score')
+
+    eng_street = eng.get('EngStreet', {}) or {}
+    eng_estate = eng.get('EngEstate', {}) or {}
+
+    chi_street = chi.get('ChiStreet', {}) or {}
+    chi_estate = chi.get('ChiEstate', {}) or {}
+
+    if not estate_or_building_name or not score or score < 55:
+      return {
+        'en': {
+          'district': (eng.get('EngDistrict') or {}).get('DcDistrict'),
+          'region': eng.get('Region'),
+        },
+        'zh-hk': {
+          'district': (chi.get('ChiDistrict') or {}).get('DcDistrict'),
+          'region': chi.get('Region'),
+        },
+        'score': float(score) if score else None,
+        'source': 'als_gov_hk',
+      }
+
+    return {
+      'geo_address': premises.get('GeoAddress'),
+      'en': {
+        'building_name': eng.get('BuildingName'),
+        'estate_name': eng_estate.get('EstateName'),
+        'street_name': eng_street.get('StreetName'),
+        'street_no': eng_street.get('BuildingNoFrom'),
+        'district': (eng.get('EngDistrict') or {}).get('DcDistrict'),
+        'region': eng.get('Region'),
+      },
+      'zh-hk': {
+        'building_name': chi.get('BuildingName'),
+        'estate_name': chi_estate.get('EstateName'),
+        'street_name': chi_street.get('StreetName'),
+        'street_no': chi_street.get('BuildingNoFrom'), 
+        'district': (chi.get('ChiDistrict') or {}).get('DcDistrict'),
+        'region': chi.get('Region'),
+      },
+      'latitude': float(geo['Latitude']) if geo.get('Latitude') else None,
+      'longitude': float(geo['Longitude']) if geo.get('Longitude') else None,
+      'score': float(score) if score else None,
+      'source': 'als_gov_hk',
+    }
   except Exception as error:
-    print(f"Place search failed for query '{query}': {error}")
+    print(f"Place search failed for query '{q}': {error}")
 
   return None
-
-
-def create_or_get_estate_building(db, place):
-  place_id = place.data.get('id')
-  if not place_id:
-    return None
-
-  existing_building = EstateBuilding.get_by_placeid(db, place_id)
-  if existing_building:
-    return existing_building
-
-  now = datetime.now().timestamp()
-  display_name = place.data.get('displayName', {})
-  location = place.data.get('location', {})
-
-  name = {}
-  name[display_name.get('languageCode', 'zh-HK')] = display_name.get('text')
-
-  building_data = {
-    'id': str(uuid.uuid4()),
-    'place_id': place_id,
-    'name': name,
-    'formatted_address': place.data.get('formattedAddress'),
-    'regions': place.regions(),
-    'types': place.data.get('types', []),
-    'primary_type': place.data.get('primaryType'),
-    'location': {
-      'latitude': location.get('latitude'),
-      'longitude': location.get('longitude'),
-    },
-    'created_at': now,
-    'updated_at': now,
-  }
-  return EstateBuilding.create(db, building_data)
 
 
 def process_property(db, prop):
   source_id = prop.get('source_id')
   now = datetime.now().timestamp()
 
-  place = search_estate_place(db, prop)
-  if place:
-    building = create_or_get_estate_building(db, place)
-    if building:
-      db['props'].update_one(
-        {'source_id': source_id},
-        {'$set': {
-          'estate_building_id': building.data.get('id'),
-          'estate_building_regions': building.data.get('regions', []),
-          'updated_at': now,
-        }}
-      )
-      print(f"Mapped {source_id} -> {building.data.get('id')}")
-      return True
+  address = search_estate_address(db, prop)
+  if address:
+    db['props'].update_one(
+      {'source_id': source_id},
+      {'$set': {
+        'address': address,
+        'updated_at': now,
+      }}
+    )
+    print(f"Mapped {source_id}")
+    return True
   
   db['props'].update_one(
     {'source_id': source_id},
@@ -152,14 +146,16 @@ def process_property(db, prop):
       'updated_at': now,
     }}
   )
-  print(f"Skip {source_id}: missing estate_or_building_name")
+  print(f"Skip {source_id}: no address found")
   return False
 
 
 def process_batch(db, batch_size):
   props = list(db['props'].find({
-    'status': "data_extracted",
-    'estate_building_id': { '$exists': False },
+    'v1_extracted_data': { '$exists': True },
+    #"indexing_status": "indexed",
+    'status': { '$ne': "archived" },
+    'address': { '$exists': False },
     'estate_building_map_error': { '$exists': False },
   }).limit(batch_size))
 
@@ -181,13 +177,14 @@ def process_batch(db, batch_size):
         }}
       )
       print(f"Error processing {source_id}: {error}")
+    time.sleep(1)  # Add delay to avoid hitting API rate limits
   return len(props), success_count
 
 
 def main():
   parser = argparse.ArgumentParser(description='Map property records to estate/building records using Google Places.')
-  parser.add_argument('--batch-size', type=int, default=20, help='Number of properties to process per batch.')
-  parser.add_argument('--max-batches', type=int, default=5, help='Max number of batches to run. 0 means run until no records remain.')
+  parser.add_argument('--batch-size', type=int, default=50, help='Number of properties to process per batch.')
+  parser.add_argument('--max-batches', type=int, default=20, help='Max number of batches to run. 0 means run until no records remain.')
   args = parser.parse_args()
 
   client = MongoClient(MONGODB_CONNECTION_STRING)
