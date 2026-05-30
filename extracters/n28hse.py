@@ -145,7 +145,6 @@ def extract_details(db, driver, link):
         "image_links": image_links,
         "thumb_links": thumb_links,
         "updated_at": datetime.datetime.now().timestamp(),
-        "created_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
         "status": "pending_extraction",
     }
@@ -154,6 +153,7 @@ def extract_details(db, driver, link):
         prop.update(meta)
         print(f"Updated prop {source_id}")
     else:
+        meta['created_at'] = datetime.datetime.now().timestamp()
         prop = Prop.create(db, {**meta, "id": str(uuid.uuid4())})
         print(f"Created prop {source_id}")
     

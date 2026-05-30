@@ -1,10 +1,12 @@
 import os
 import uuid
 import json
+import requests
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from bson.objectid import ObjectId
+import send_prop_matched_wtsapp_msg
 
 load_dotenv()
 
@@ -64,19 +66,21 @@ def sanitize_conv(conv):
 
 
 def sanitize_prop(prop):
-    extracted = prop.get('v1_summary_data', {})
+    extracted = prop.get('v1_extracted_data', {})
+    summary = prop.get('v1_summary_data', {})
     return {
         'source_id': prop.get('source_id'),
-        'headline_en': extracted.get('headline_en'),
-        'executive_summary_en': extracted.get('executive_summary_en'),
-        'key_highlights': extracted.get('key_highlights', []),
-        'possible_concerns': extracted.get('possible_concerns', []),
-        'price_analysis': extracted.get('price_analysis', {}),
-        'layout_and_space': extracted.get('layout_and_space', {}),
-        'location_and_transport': extracted.get('location_and_transport', {}),
-        'photo_insights': extracted.get('photo_insights', {}),
-        'recommended_for': extracted.get('recommended_for', []),
-        'confidence_score': extracted.get('confidence_score'),
+        'district': prop.get('address', {}).get('en', {}).get('district'),
+        'headline_en': summary.get('headline_en'),
+        'executive_summary_en': summary.get('executive_summary_en'),
+        'key_highlights': summary.get('key_highlights', []),
+        'possible_concerns': summary.get('possible_concerns', []),
+        'price_analysis': summary.get('price_analysis', {}),
+        'layout_and_space': summary.get('layout_and_space', {}),
+        'location_and_transport': summary.get('location_and_transport', {}),
+        'photo_insights': summary.get('photo_insights', {}),
+        'recommended_for': summary.get('recommended_for', []),
+        'confidence_score': summary.get('confidence_score'),
     }
 
 
@@ -92,26 +96,50 @@ def create_system_prompt():
         "Return JSON:\n"
         "{\n"
         '  "matched_source_ids": ["source_id_1", "source_id_2"],\n'
-        '  "match_count": 0,\n'
-        '  "reason": "brief reason"\n'
         "}"
     )
 
+def lookup_hk_address(keyword):
+    try:
+        response = requests.get(
+            'https://www.als.gov.hk/lookup',
+            params={'q': keyword, 'n': 5},
+            headers={
+                'Accept': 'application/json',
+                'Accept-Language': 'en,zh-Hant',
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as error:
+        print(f"ALS address lookup failed for keyword '{keyword}': {error}")
+        return None
 
 def prematch_by_search_criteria(user, listings):
-    sc = user.get('propertySearchCriteria', {})
+    sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
     query_text = sc.get('queryText', '').lower()
-    district = sc.get('district', '').lower()
+    district_keywords = [d for d in sc.get('districts', [])]
+    districts = []
+    for dk in district_keywords:
+        lookup_result = lookup_hk_address(dk)
+        if lookup_result and 'SuggestedAddress' in lookup_result:
+            suggestion = lookup_result['SuggestedAddress'][0] 
+            district_info = suggestion.get('Address', {}).get('PremisesAddress', {}).get('EngDistrict', {})
+            if district_info:
+                districts.append(district_info.get('DcDistrict', '').lower())
     bedrooms = sc.get('bedrooms')
     min_price = sc.get('minPrice')
     max_price = sc.get('maxPrice')
 
     def matches(prop):
-        if district and district not in prop.get('district', '').lower():
+        extracted = prop.get('v1_extracted_data', {})
+        district = prop.get('address', {}).get('en', {}).get('district', '').lower()
+        if districts and not any(district in d for d in districts):
             return False
-        if bedrooms and prop.get('number_of_bedrooms') != bedrooms:
+        if bedrooms and extracted.get('number_of_bedrooms') != bedrooms:
             return False
-        price = prop.get('rent_price') or prop.get('sell_price')
+        price = extracted.get('rent_price') or extracted.get('sell_price')
         if price is not None:
             if min_price and price < min_price:
                 return False
@@ -162,8 +190,7 @@ def main():
         return
 
     print(f"Found {len(props)} new properties from yesterday.")
-    listings = [sanitize_prop(p) for p in props]
-    sorted_listings = sorted(listings, key=lambda x: x.get('confidence_score', 0), reverse=True)
+    sorted_listings = sorted(props, key=lambda x: x.get('v1_summary_data', {}).get('confidence_score', 0), reverse=True)
     
     batch_code = gen_batch_code()
     batch_file_path = os.path.join(folder, 'batch_files', f"batch-{batch_code}.jsonl")
@@ -180,7 +207,7 @@ def main():
                     continue
                 conv = get_conversation_by_user_id(db, user_id)
                 if conv:
-                    messages = create_match_prompt(conv, user, filtered_listings[:20])
+                    messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:20]])
                     row = {
                         'custom_id': f'match-{user_id}',
                         'method': 'POST',

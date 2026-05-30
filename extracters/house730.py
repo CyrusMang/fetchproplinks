@@ -69,7 +69,6 @@ def extract_details(db, driver2, link):
         "type": 'apartment',
         "post_type": prop_post_type,
         "updated_at": datetime.datetime.now().timestamp(),
-        "created_at": datetime.datetime.now().timestamp(),
         "image_links": image_links,
         "source_html_content": content_body_div.get_attribute('outerHTML'),
         "status": "pending_extraction",
@@ -79,6 +78,7 @@ def extract_details(db, driver2, link):
         prop.update(meta)
         print(f"Updated prop {source_id}")
     else:
+        meta['created_at'] = datetime.datetime.now().timestamp()
         prop = Prop.create(db, {**meta, "id": str(uuid.uuid4())})
         print(f"Created prop {source_id}")
 
