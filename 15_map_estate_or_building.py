@@ -157,7 +157,7 @@ def process_batch(db, batch_size):
     'status': { '$ne': "archived" },
     'address': { '$exists': False },
     'estate_building_map_error': { '$exists': False },
-  }).limit(batch_size))
+  }).sort("created_at", -1).limit(batch_size))
 
   if not props:
     return 0, 0

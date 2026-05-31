@@ -8,7 +8,7 @@ from pymongo import MongoClient
 
 load_dotenv()
 
-batch_size = 20
+batch_size = 50
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

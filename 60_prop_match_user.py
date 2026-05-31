@@ -118,6 +118,8 @@ def lookup_hk_address(keyword):
 
 def prematch_by_search_criteria(user, listings):
     sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
+    if not sc:
+        return []
     query_text = sc.get('queryText', '').lower()
     district_keywords = [d for d in sc.get('districts', [])]
     districts = []
@@ -128,9 +130,9 @@ def prematch_by_search_criteria(user, listings):
             district_info = suggestion.get('Address', {}).get('PremisesAddress', {}).get('EngDistrict', {})
             if district_info:
                 districts.append(district_info.get('DcDistrict', '').lower())
-    bedrooms = sc.get('bedrooms')
-    min_price = sc.get('minPrice')
-    max_price = sc.get('maxPrice')
+    bedrooms = int(sc.get('bedrooms')) if sc.get('bedrooms') is not None else None
+    min_price = int(sc.get('minPrice')) if sc.get('minPrice') is not None else None
+    max_price = int(sc.get('maxPrice')) if sc.get('maxPrice') is not None else None
 
     def matches(prop):
         extracted = prop.get('v1_extracted_data', {})
@@ -207,6 +209,7 @@ def main():
                     continue
                 conv = get_conversation_by_user_id(db, user_id)
                 if conv:
+                    print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.")
                     messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:20]])
                     row = {
                         'custom_id': f'match-{user_id}',
@@ -220,10 +223,11 @@ def main():
                         },
                     }
                     batch_file.write(f"{json.dumps(row, ensure_ascii=False)}\n")
-                else:
-                    phone = next((id.get('key') for id in user.get('identifiers', []) if id.get('type') == 'phone'), '')
-                    lang = user.get('userPreferences', {}).get('preferredLanguage', 'en')
-                    success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, len(props), filtered_listings)
+                # else:
+                #     print(f"Sent for user {user_id} with {len(filtered_listings)} candidate listings.")
+                #     phone = next((id.get('key') for id in user.get('identifiers', []) if id.get('type') == 'phone'), '')
+                #     lang = user.get('userPreferences', {}).get('preferredLanguage', 'en')
+                    #success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, len(props), filtered_listings)
                 processed_count += 1
 
     if processed_count == 0:
