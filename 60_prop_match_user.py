@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import requests
+from bson import ObjectId
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -47,8 +48,8 @@ def get_yesterday_props(db):
 
 
 def get_conversation_by_user_id(db, user_id):
-    conv = db['conversations'].find_one({ 'user_id': user_id })
-    return conv.get('conversation_id') if conv else None
+    conv = db['conversations'].find_one({ 'userId': ObjectId(user_id) })
+    return conv
 
 
 def sanitize_conv(conv):
@@ -88,7 +89,7 @@ def create_system_prompt():
     return (
         "You are a Hong Kong property matching assistant.\n"
         "Given a subscriber's search preferences and a list of new property listings, "
-        "identify the best matching listings (up to 5) for the subscriber.\n\n"
+        "identify the best matching listings (up to 4) for the subscriber.\n\n"
         "Rules:\n"
         "- Match based on user conversation summary.\n"
         "- If no listings match well, return an empty matched_source_ids array.\n"
@@ -210,7 +211,7 @@ def main():
                 conv = get_conversation_by_user_id(db, user_id)
                 if conv:
                     print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.")
-                    messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:20]])
+                    messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:10]])
                     row = {
                         'custom_id': f'match-{user_id}',
                         'method': 'POST',

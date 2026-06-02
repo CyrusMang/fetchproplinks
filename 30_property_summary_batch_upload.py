@@ -15,8 +15,8 @@ OPENAI_API_ENDPOINT = os.getenv("OPENAI_API_ENDPOINT")
 OPENAI_API_VERSION = os.getenv("OPENAI_API_VERSION")
 ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 
-batch_size = 30
-max_photos_per_property = 8
+batch_size = 50
+max_photos_per_property = 5
 
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)

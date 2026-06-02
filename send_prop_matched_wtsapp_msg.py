@@ -1,5 +1,13 @@
 import chatwoot_api_helpers
 
+templates = {
+    1: "new_prop_matched_1",
+    2: "new_prop_matched_2",
+    3: "new_prop_matched_3",
+    4: "new_prop_matched_4",
+    # 5: "new_prop_matched_5",
+}
+
 def send(rent_or_sell, phone, lang, total, props):
     contact = chatwoot_api_helpers.get_or_create_contact(phone)
     if not contact:
@@ -12,7 +20,7 @@ def send(rent_or_sell, phone, lang, total, props):
     template_params = {
         'total': total,
     }
-    selected_props = props[:5]  # Limit to top 5 properties
+    selected_props = props[:4]  # Limit to top 4 properties
     for i, prop in enumerate(selected_props, start=1):
         extracted = prop.get('v1_extracted_data')
         summary = prop.get('v1_summary_data')
@@ -25,5 +33,5 @@ def send(rent_or_sell, phone, lang, total, props):
     
     print(f"phone: {phone}, lang: {lang}, total: {len(props)}, selected_props: {len(selected_props)}")
     return chatwoot_api_helpers.send_whatsapp_template(
-        contact_id, lang, f"new_prop_matched_{str(len(selected_props))}", 'UTILITY', template_params
+        contact_id, lang, templates[len(selected_props)], 'UTILITY', template_params
     )

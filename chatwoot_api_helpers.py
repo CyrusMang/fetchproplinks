@@ -15,6 +15,12 @@ CHATWOOT_API_TOKEN = os.getenv("CHATWOOT_API_TOKEN")
 CHATWOOT_USER_API_TOKEN = os.getenv("CHATWOOT_USER_API_TOKEN", CHATWOOT_API_TOKEN)
 CHATWOOT_INBOX_ID = os.getenv("CHATWOOT_INBOX_ID")   # WhatsApp inbox ID in Chatwoot
 
+lang_code_map = {
+    'en': 'en_US',
+    'zh-hk': 'zh_HK',
+    'zh-cn': 'zh_HK',
+}
+
 def chatwoot_headers():
     return {
         'api_access_token': CHATWOOT_API_TOKEN,
@@ -67,7 +73,7 @@ def send_whatsapp_template(contact_id, lang, template_name, template_category, t
             'template_params': {
                 'name': template_name,
                 'category': template_category,
-                'language': lang,
+                'language': lang_code_map.get(lang, 'en_US'),
                 'processed_params': template_params,
             }
         },

@@ -64,23 +64,6 @@ def format_size(sqft):
         return "N/A"
     return f"{int(sqft)} sqft"
 
-
-def get_yesterday_timestamps():
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday = today - timedelta(days=1)
-    return int(yesterday.timestamp()), int(today.timestamp())
-
-
-def get_yesterday_props(db):
-    start_ts, end_ts = get_yesterday_timestamps()
-    f = {
-        'indexing_status': 'indexed',
-        'status': {'$ne': 'archived'},
-        'created_at': {'$gte': start_ts, '$lt': end_ts},
-    }
-    print(f"Querying properties with filter: {f}")
-    return list(db['props'].find(f))
-
 # ---------------------------------------------------------------------------
 # Main processing
 # ---------------------------------------------------------------------------
@@ -103,8 +86,6 @@ def main():
     )
     mongo_client = MongoClient(MONGODB_CONNECTION_STRING)
     db = mongo_client['prop_main']
-
-    total = get_yesterday_props(db)
 
     os.makedirs(os.path.join(folder, 'data'), exist_ok=True)
     os.makedirs(os.path.join(folder, 'backup'), exist_ok=True)
@@ -195,14 +176,14 @@ def main():
                 skipped += 1
                 continue
 
-            # Fetch matched props (up to 5)
-            matched_source_ids = matched_ids[:5]
+            # Fetch matched props (up to 4)
+            matched_source_ids = matched_ids[:4]
             matched_props = [
                 db['props'].find_one({'source_id': sid})
                 for sid in matched_source_ids
             ]
-            lang = user.get('userPreferences', {}).get('preferredLanguage', 'en')
-            success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total, matched_props)
+            lang = user.get('userPreferences', {}).get('language', 'en')
+            success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total_new_props, matched_props)
 
             if success:
                 sent += 1
