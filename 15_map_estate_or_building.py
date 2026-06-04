@@ -39,6 +39,36 @@ def normalize_text(value):
 def pick_place(places, estate_or_building_name):
   return places[0]
 
+def lookup_sub_district_by_geo_location(db, latitude, longitude):
+  # {
+  #   "_id": {
+  #     "$oid": "6a1fa20533104a0ebe7b98e9"
+  #   },
+  #   "subDistrictName": "筲箕灣",
+  #   "subDistrictNameEN": "Shau Kei Wan",
+  #   "districtCode": "EST",
+  #   "location": {
+  #     "type": "Point",
+  #     "coordinates": [
+  #       114.2281847952,
+  #       22.2791244542
+  #     ]
+  #   }
+  # }
+
+  if latitude is None or longitude is None:
+    return None
+  sub_district = db['sub_districts'].find_one({
+    "location": {
+      "$near": {
+        "$geometry": {
+          "type": "Point",
+          "coordinates": [longitude, latitude]
+        }
+      }
+    }
+  })
+  return sub_district
 
 def search_estate_address(db, prop):
   extracted = prop.get('v1_extracted_data', {})
@@ -80,6 +110,19 @@ def search_estate_address(db, prop):
     chi_street = chi.get('ChiStreet', {}) or {}
     chi_estate = chi.get('ChiEstate', {}) or {}
 
+    latitude = float(geo['Latitude']) if geo.get('Latitude') else None
+    longitude = float(geo['Longitude']) if geo.get('Longitude') else None
+
+    subdistrict = lookup_sub_district_by_geo_location(db, latitude, longitude)
+    subdistrict_info = {
+      'subdistrict_id': subdistrict['_id'],
+      'name': subdistrict.get('subDistrictName'),
+      'name_en': subdistrict.get('subDistrictNameEN'),
+      'district_code': subdistrict.get('districtCode'),
+      'latitude': latitude,
+      'longitude': longitude,
+    } if subdistrict else None
+
     if not estate_or_building_name or not score or score < 55:
       return {
         'en': {
@@ -90,6 +133,7 @@ def search_estate_address(db, prop):
           'district': (chi.get('ChiDistrict') or {}).get('DcDistrict'),
           'region': chi.get('Region'),
         },
+        'subdistrict': subdistrict_info,
         'score': float(score) if score else None,
         'source': 'als_gov_hk',
       }
@@ -112,8 +156,9 @@ def search_estate_address(db, prop):
         'district': (chi.get('ChiDistrict') or {}).get('DcDistrict'),
         'region': chi.get('Region'),
       },
-      'latitude': float(geo['Latitude']) if geo.get('Latitude') else None,
-      'longitude': float(geo['Longitude']) if geo.get('Longitude') else None,
+      'latitude': latitude,
+      'longitude': longitude,
+      'subdistrict': subdistrict_info,
       'score': float(score) if score else None,
       'source': 'als_gov_hk',
     }
@@ -153,6 +198,7 @@ def process_property(db, prop):
 def process_batch(db, batch_size):
   props = list(db['props'].find({
     'v1_extracted_data': { '$exists': True },
+    #'address.subdistrict': { '$exists': False },
     #"indexing_status": "indexed",
     'status': { '$ne': "archived" },
     'address': { '$exists': False },
