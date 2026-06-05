@@ -1,12 +1,28 @@
 import chatwoot_api_helpers
 
 templates = {
-    1: "new_prop_matched_1",
-    2: "new_prop_matched_2",
-    3: "new_prop_matched_3",
-    4: "new_prop_matched_4",
-    # 5: "new_prop_matched_5",
+    1: ["new_prop_matched_1", ['zh-cn'], 'UTILITY'],
+    2: ["new_prop_matched_2", ['zh-hk', 'zh-cn'], 'UTILITY'],
+    3: ["new_prop_matched_3", ['en', 'zh-hk', 'zh-cn'], 'UTILITY'],
+    4: ["new_prop_matched_4", ['zh-hk', 'zh-cn'], 'UTILITY'],
+    # 5: ["new_prop_matched_5", ['en', 'zh-hk'], 'UTILITY'],
 }
+
+def get_right_num_of_props(num_props, lang):
+    if num_props >= 4 or num_props < 1:
+        raise ValueError(f"Invalid number of properties: {num_props}")
+    template = templates[num_props]
+    if lang not in template[1]:
+        return get_template_id(num_props - 1, lang)
+    return num_props
+
+def get_template_and_props(props, lang):
+    num_props = min(len(props), 4)
+    try:
+        right_num = get_right_num_of_props(num_props, lang)
+        return [templates[right_num][0], templates[right_num][2], props[:right_num]]
+    except ValueError:
+        return None
 
 def send(rent_or_sell, phone, lang, total, props):
     contact = chatwoot_api_helpers.get_or_create_contact(phone)
@@ -20,7 +36,12 @@ def send(rent_or_sell, phone, lang, total, props):
     template_params = {
         'total': total,
     }
-    selected_props = props[:4]  # Limit to top 4 properties
+    r = get_template_and_props(props, lang)
+    if not r:
+        print(f"No suitable template and language {lang}")
+        return False
+    template_name, template_category, selected_props = r
+
     for i, prop in enumerate(selected_props, start=1):
         extracted = prop.get('v1_extracted_data')
         summary = prop.get('v1_summary_data')
@@ -33,5 +54,5 @@ def send(rent_or_sell, phone, lang, total, props):
     
     print(f"phone: {phone}, lang: {lang}, total: {len(props)}, selected_props: {len(selected_props)}")
     return chatwoot_api_helpers.send_whatsapp_template(
-        contact_id, lang, templates[len(selected_props)], 'UTILITY', template_params
+        contact_id, lang, template_name, template_category, template_params
     )

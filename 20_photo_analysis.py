@@ -70,9 +70,9 @@ def main():
     collection = db['props']
     photo_collection = db['prop_photos']
 
-    props = collection.find({ 'status': 'data_extracted' }).sort("created_at", -1).limit(batch_size)
+    props = list(collection.find({ 'status': 'data_extracted' }).sort("created_at", -1).limit(batch_size))
 
-    if props.count() == 0:
+    if len(props) == 0:
         print("No properties found for photo analysis.")
         client.close()
         return
