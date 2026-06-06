@@ -232,13 +232,13 @@ def main():
         for user_batch in batch_subscribers(db):
             for user in user_batch:
                 user_id = str(user.get('_id'))
-                filtered_listings = prematch_by_search_criteria(user, sorted_listings)
-                if not filtered_listings:
-                    print(f"No listings match search criteria for user {user_id}, skipping.")
-                    continue
                 conv = get_pending_conversation_by_user_id(db, user_id)
                 if not conv:
                     print(f"No pending conversation found for user {user_id}, skipping.")
+                    continue
+                filtered_listings = prematch_by_search_criteria(user, sorted_listings)
+                if not filtered_listings:
+                    print(f"No listings match search criteria for user {user_id}, skipping.")
                     continue
                 print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.")
                 messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:10]])
