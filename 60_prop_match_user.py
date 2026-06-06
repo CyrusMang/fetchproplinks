@@ -48,8 +48,12 @@ def get_yesterday_props(db):
     return list(db['props'].find(f))
 
 
-def get_conversation_by_user_id(db, user_id):
-    conv = db['conversations'].find_one({ 'userId': ObjectId(user_id) })
+def get_pending_conversation_by_user_id(db, user_id):
+    six_hours_ago = int((datetime.now() - timedelta(hours=6)).timestamp())
+    conv = db['conversations'].find_one({ 
+      'userId': ObjectId(user_id),
+      'updatedAt': {'$lte': six_hours_ago},
+    })
     return conv
 
 
@@ -231,23 +235,25 @@ def main():
                 if not filtered_listings:
                     print(f"No listings match search criteria for user {user_id}, skipping.")
                     continue
-                conv = get_conversation_by_user_id(db, user_id)
-                if conv:
-                    print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.")
-                    messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:10]])
-                    row = {
-                        'custom_id': f'match-{user_id}',
-                        'method': 'POST',
-                        'url': '/chat/completions',
-                        'body': {
-                            'model': 'gpt-4.1-nano',
-                            'messages': messages,
-                            'max_tokens': 500,
-                            'response_format': {'type': 'json_object'},
-                        },
-                    }
-                    batch_file.write(f"{json.dumps(row, ensure_ascii=False)}\n")
-                    processed_count += 1
+                conv = get_pending_conversation_by_user_id(db, user_id)
+                if not conv:
+                    print(f"No pending conversation found for user {user_id}, skipping.")
+                    continue
+                print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.")
+                messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:10]])
+                row = {
+                    'custom_id': f'match-{user_id}',
+                    'method': 'POST',
+                    'url': '/chat/completions',
+                    'body': {
+                        'model': 'gpt-4.1-nano',
+                        'messages': messages,
+                        'max_tokens': 500,
+                        'response_format': {'type': 'json_object'},
+                    },
+                }
+                batch_file.write(f"{json.dumps(row, ensure_ascii=False)}\n")
+                processed_count += 1
 
     if processed_count == 0:
         print("No subscribers with phone numbers found.")
