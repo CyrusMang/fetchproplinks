@@ -6,7 +6,9 @@ from openai import AzureOpenAI
 from pymongo import MongoClient
 import requests
 from dotenv import load_dotenv
-import send_prop_matched_wtsapp_msg
+# import send_prop_matched_wtsapp_msg
+from models.conversation import Conversation
+import chatwoot_api_helpers
 
 load_dotenv()
 
@@ -63,6 +65,62 @@ def format_size(sqft):
     if sqft is None:
         return "N/A"
     return f"{int(sqft)} sqft"
+
+import chatwoot_api_helpers
+
+templates = {
+    1: ["new_prop_matched_1", ['zh-cn'], 'UTILITY'],
+    2: ["new_prop_matched_2", ['zh-hk', 'zh-cn'], 'UTILITY'],
+    3: ["new_prop_matched_3", ['en', 'zh-hk', 'zh-cn'], 'UTILITY'],
+    4: ["new_prop_matched_4", ['zh-hk', 'zh-cn'], 'UTILITY'],
+    # 5: ["new_prop_matched_5", ['en', 'zh-hk'], 'UTILITY'],
+}
+
+def get_right_num_of_props(num_props, lang):
+    if num_props > 4 or num_props < 1:
+        raise ValueError(f"Invalid number of properties: {num_props}")
+    template = templates[num_props]
+    if lang not in template[1]:
+        return get_template_id(num_props - 1, lang)
+    return num_props
+
+def get_template_and_props(props, lang):
+    print(f"get_template_and_props: num_props={len(props)}, lang={lang}")
+    num_props = min(len(props), 4)
+    try:
+        right_num = get_right_num_of_props(num_props, lang)
+        return [templates[right_num][0], templates[right_num][2], props[:right_num]]
+    except ValueError:
+        return None
+
+def render_message(prop_num, params, lang): 
+    if lang == 'zh-hk':
+        msg = f"Hello, 跟據你要求, 係{params['total']}個新盤入面搵到有{prop_num}個盤啱：\n\n"
+        for i in range(1, prop_num + 1):
+            msg += f"{i}️⃣ {params[f'prop_{i}_title']}\n"
+            msg += f"- 租金：{params[f'prop_{i}_price']}\n"
+            msg += f"- 面積：{params[f'prop_{i}_size']}\n"
+            msg += f"- {params[f'prop_{i}_link']}\n\n"
+        msg += "我會繼續幫你留意住市場, 如果有邊幾個單位睇啱話我知, 我幫你約睇樓😊"
+        return msg
+    elif lang == 'zh-cn':
+        msg = f"你好，根据你的要求，在{params['total']}个新盘里面找到有{prop_num}个盘合适：\n\n"
+        for i in range(1, prop_num + 1):
+            msg += f"{i}️⃣ {params[f'prop_{i}_title']}\n"
+            msg += f"- 租金：{params[f'prop_{i}_price']}\n"
+            msg += f"- 面积：{params[f'prop_{i}_size']}\n"
+            msg += f"- {params[f'prop_{i}_link']}\n\n"
+        msg += "我会继续帮你留意市场，如果有哪个单位看合适告诉我，我帮你约看房😊"
+        return msg
+    else:
+        msg = f"Hello, based on your requirements, we found {prop_num} suitable listings among {params['total']} new properties:\n\n"
+        for i in range(1, prop_num + 1):
+            msg += f"{i}️⃣ {params[f'prop_{i}_title']}\n"
+            msg += f"- Price: {params[f'prop_{i}_price']}\n"
+            msg += f"- Size: {params[f'prop_{i}_size']}\n"
+            msg += f"- {params[f'prop_{i}_link']}\n\n"
+        msg += "I will keep an eye on the market for you. If you are interested in any of these units, let me know and I can help arrange a viewing!😊"
+        return msg
 
 # ---------------------------------------------------------------------------
 # Main processing
@@ -176,6 +234,12 @@ def main():
                 skipped += 1
                 continue
 
+            conv = Conversation.get_by_user_id(db, user_oid)
+            if not conv:
+                print(f"No conversation found for user {user_id_str}")
+                skipped += 1
+                continue
+
             # Fetch matched props (up to 4)
             matched_source_ids = matched_ids[:4]
             matched_props = [
@@ -183,7 +247,53 @@ def main():
                 for sid in matched_source_ids
             ]
             lang = user.get('userPreferences', {}).get('language', 'en')
-            success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total_new_props, matched_props)
+
+            contact = chatwoot_api_helpers.get_or_create_contact(phone)
+            if not contact:
+                print(f"Failed to get or create contact for {user_id_str}")
+                return False
+            contact_id = contact.get('id')
+            if not contact_id:
+                print(f"Contact found but missing ID for {user_id_str}")
+                return False
+            template_params = {
+                'total': total_new_props,
+            }
+            r = get_template_and_props(matched_props, lang)
+            if not r:
+                print(f"No suitable template and language {lang}")
+                return False
+            template_name, template_category, selected_props = r
+
+            for i, prop in enumerate(selected_props, start=1):
+                extracted = prop.get('v1_extracted_data')
+                summary = prop.get('v1_summary_data')
+                size = extracted.get('net_size_sqft')
+                price = extracted.get(f'rent_price')
+                template_params[f'prop_{i}_title'] = summary.get(f'headline_{lang.replace("-", "_")}')
+                template_params[f'prop_{i}_price'] = f"${price}"
+                template_params[f'prop_{i}_size'] = f"{size} ft²" if size else "N/A"
+                template_params[f'prop_{i}_link'] = prop.get('source_url')
+            
+            rendered_message = render_message(len(selected_props), template_params, lang)
+            aimsg = {
+              'type': 'ai',
+              'content': rendered_message
+            }
+            try:
+                conv.add_message(aimsg)
+            except Exception as e:
+                print(f"Failed to add message for user {user_id_str}: {e}")
+                continue
+
+            print(f"user: {user_id_str}, lang: {lang}, total: {total_new_props}, selected_props: {len(selected_props)}")
+            success = chatwoot_api_helpers.send_whatsapp_template(
+                contact_id, lang, template_name, template_category, template_params
+            )
+            # success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total_new_props, matched_props)
+
+            conv.conversation_summary()
+            conv.archive_messages()
 
             if success:
                 sent += 1

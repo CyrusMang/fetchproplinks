@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import requests
+import math
 from bson import ObjectId
 from datetime import datetime, timedelta
 from pymongo import MongoClient
@@ -117,28 +118,46 @@ def lookup_hk_address(keyword):
         print(f"ALS address lookup failed for keyword '{keyword}': {error}")
         return None
 
+RADIUS_DEG = 1 / 69
 def prematch_by_search_criteria(user, listings):
     sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
     if not sc:
         return []
-    query_text = sc.get('queryText', '').lower()
     district_keywords = [d for d in sc.get('districts', [])]
     districts = []
     for dk in district_keywords:
         lookup_result = lookup_hk_address(dk)
         if lookup_result and 'SuggestedAddress' in lookup_result:
             suggestion = lookup_result['SuggestedAddress'][0] 
-            district_info = suggestion.get('Address', {}).get('PremisesAddress', {}).get('EngDistrict', {})
+            district_info = suggestion.get('Address', {}).get('PremisesAddress', {}).get('GeospatialInformation', {})
             if district_info:
-                districts.append(district_info.get('DcDistrict', '').lower())
+                districts.append(district_info)
     bedrooms = int(sc.get('bedrooms')) if sc.get('bedrooms') is not None else None
     min_price = int(sc.get('minPrice')) if sc.get('minPrice') is not None else None
     max_price = int(sc.get('maxPrice')) if sc.get('maxPrice') is not None else None
 
     def matches(prop):
         extracted = prop.get('v1_extracted_data', {})
-        district = prop.get('address', {}).get('en', {}).get('district', '').lower()
-        if districts and not any(district in d for d in districts):
+        latitude = prop.get('address', {}).get('subdistrict', {}).get('latitude')
+        longitude = prop.get('address', {}).get('subdistrict', {}).get('longitude')
+        if districts and (latitude is None or longitude is None):
+            return False
+        in_district = False
+        lat_per_lng = math.cos(math.radians(latitude))
+        if lat_per_lng == 0:
+          lat_per_lng = 0.0001
+        adjusted_lng_radius = RADIUS_DEG / lat_per_lng
+        for d in districts:
+            d_lat = float(d.get('Latitude'))
+            d_lng = float(d.get('Longitude'))
+            if d_lat is None or d_lng is None:
+                continue
+            lat_diff = abs(latitude - d_lat)
+            lng_diff = abs(longitude - d_lng)
+            if lat_diff <= RADIUS_DEG and lng_diff <= adjusted_lng_radius:
+                in_district = True
+                break
+        if not in_district:
             return False
         if bedrooms and extracted.get('number_of_bedrooms') != bedrooms:
             return False
@@ -172,7 +191,11 @@ def batch_subscribers(db):
     while True:
         users = list(
             db['users']
-            .find({'identifiers': { '$elemMatch': {'type': 'phone'} }})
+            .find({
+                # '_id': ObjectId('6a10d0d92ded380951e84e93'),
+                'identifiers': { '$elemMatch': {'type': 'phone'} },
+                'userPreferences.disableNotifications': { '$ne': True },
+            })
             .skip(skip)
             .limit(user_batch_size)
         )
@@ -224,12 +247,7 @@ def main():
                         },
                     }
                     batch_file.write(f"{json.dumps(row, ensure_ascii=False)}\n")
-                # else:
-                #     print(f"Sent for user {user_id} with {len(filtered_listings)} candidate listings.")
-                #     phone = next((id.get('key') for id in user.get('identifiers', []) if id.get('type') == 'phone'), '')
-                #     lang = user.get('userPreferences', {}).get('preferredLanguage', 'en')
-                    #success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, len(props), filtered_listings)
-                processed_count += 1
+                    processed_count += 1
 
     if processed_count == 0:
         print("No subscribers with phone numbers found.")
