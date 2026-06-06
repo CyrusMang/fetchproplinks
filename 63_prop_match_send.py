@@ -81,7 +81,7 @@ def get_right_num_of_props(num_props, lang):
         raise ValueError(f"Invalid number of properties: {num_props}")
     template = templates[num_props]
     if lang not in template[1]:
-        return get_template_id(num_props - 1, lang)
+        return get_right_num_of_props(num_props - 1, lang)
     return num_props
 
 def get_template_and_props(props, lang):
@@ -251,18 +251,18 @@ def main():
             contact = chatwoot_api_helpers.get_or_create_contact(phone)
             if not contact:
                 print(f"Failed to get or create contact for {user_id_str}")
-                return False
+                continue
             contact_id = contact.get('id')
             if not contact_id:
                 print(f"Contact found but missing ID for {user_id_str}")
-                return False
+                continue
             template_params = {
                 'total': total_new_props,
             }
             r = get_template_and_props(matched_props, lang)
             if not r:
                 print(f"No suitable template and language {lang}")
-                return False
+                continue
             template_name, template_category, selected_props = r
 
             for i, prop in enumerate(selected_props, start=1):

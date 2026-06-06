@@ -142,8 +142,9 @@ def prematch_by_search_criteria(user, listings):
 
     def matches(prop):
         extracted = prop.get('v1_extracted_data', {})
-        latitude = prop.get('address', {}).get('subdistrict', {}).get('latitude')
-        longitude = prop.get('address', {}).get('subdistrict', {}).get('longitude')
+        subdistrict = prop.get('address', {}).get('subdistrict', {})
+        latitude = subdistrict.get('latitude')
+        longitude = subdistrict.get('longitude')
         if districts and (latitude is None or longitude is None):
             return False
         in_district = False
