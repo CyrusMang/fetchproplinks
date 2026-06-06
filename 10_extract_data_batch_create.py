@@ -102,6 +102,7 @@ def main():
                 "body": {
                     "model": "gpt-4.1-nano",
                     "messages": prompt,
+                    "max_tokens": 4000,
                     "response_format": { "type": "json_object" }
                 }
             }

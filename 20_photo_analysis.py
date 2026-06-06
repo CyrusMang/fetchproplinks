@@ -20,8 +20,8 @@ os.makedirs(os.path.join(folder, 'batch_files'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 
-batch_size = 50
-max_photos_per_property = 4
+batch_size = 100
+max_photos_per_property = 3
 
 scraper = cloudscraper.create_scraper()
 

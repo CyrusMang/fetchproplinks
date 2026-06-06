@@ -4,7 +4,7 @@ import os
 import undetected_chromedriver as uc
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from reviewers import n28hse, house730
+from reviewers import n28hse, house730, midland
 
 load_dotenv()
 
@@ -26,6 +26,8 @@ def check_batch(db, driver, filter, skip=0, limit=batch_size):
             house730.review(db, driver, prop)
         elif prop['source_channel'] == '28hse':
             n28hse.review(db, driver, prop)
+        elif prop['source_channel'] == 'midland':
+            midland.review(db, driver, prop)
         count += 1
     if count < limit:
         return False

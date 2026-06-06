@@ -1,6 +1,6 @@
 import requests
 from datetime import datetime
-#from models.prop import Prop
+from models.prop import Prop
 
 def review(db, driver, prop):
     response = requests.get(prop['source_url'], allow_redirects=False)
@@ -10,10 +10,3 @@ def review(db, driver, prop):
     else:
         Prop(db, prop).update({'updated_at': datetime.now().timestamp()})
         print(f"Place {prop['source_id']} is still accessible.")
-
-def test():
-    link = 'https://www.28hse.com/rent/apartment/property-3829630'
-    response = requests.get(link, allow_redirects=False)
-    print(response.status_code)
-
-test()

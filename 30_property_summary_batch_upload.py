@@ -15,8 +15,8 @@ OPENAI_API_ENDPOINT = os.getenv("OPENAI_API_ENDPOINT")
 OPENAI_API_VERSION = os.getenv("OPENAI_API_VERSION")
 ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 
-batch_size = 50
-max_photos_per_property = 5
+batch_size = 100
+max_photos_per_property = 3
 
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
@@ -210,8 +210,8 @@ def main():
 				"body": {
 					"model": "gpt-4o-mini-batch",
 					"messages": messages,
-					"temperature": 0.2,
-					"max_tokens": 1800,
+					"temperature": 0.3,
+					"max_tokens": 4000,
 					"response_format": {"type": "json_object"},
 				},
 			}
