@@ -76,7 +76,6 @@ def sanitize_prop(prop):
     summary = prop.get('v1_summary_data', {})
     return {
         'source_id': prop.get('source_id'),
-        'district': prop.get('address', {}).get('en', {}).get('district'),
         'headline_en': summary.get('headline_en'),
         'executive_summary_en': summary.get('executive_summary_en'),
         'key_highlights': summary.get('key_highlights', []),
@@ -164,13 +163,16 @@ def prematch_by_search_criteria(user, listings):
                 break
         if not in_district:
             return False
-        if bedrooms and extracted.get('number_of_bedrooms') != bedrooms:
+        prop_bedrooms = extracted.get('number_of_bedrooms')
+        if not prop_bedrooms:
+            return False
+        if bedrooms is not None and (bedrooms > prop_bedrooms or bedrooms + 1 < prop_bedrooms):
             return False
         price = extracted.get('rent_price') or extracted.get('sell_price')
         if price is not None:
-            if min_price and price < min_price:
+            if min_price and price < (min_price * 0.8):
                 return False
-            if max_price and price > max_price:
+            if max_price and price > (max_price * 1.1):
                 return False
         return True
 
@@ -197,7 +199,7 @@ def batch_subscribers(db):
         users = list(
             db['users']
             .find({
-                # '_id': ObjectId('6a10d0d92ded380951e84e93'),
+                #'_id': ObjectId('6a10d0d92ded380951e84e93'),
                 'identifiers': { '$elemMatch': {'type': 'phone'} },
                 'userPreferences.disableNotifications': { '$ne': True },
             })
@@ -240,7 +242,7 @@ def main():
                 if not filtered_listings:
                     print(f"No listings match search criteria for user {user_id}, skipping.")
                     continue
-                print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.")
+                print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.: {[p['source_id'] for p in filtered_listings[:6]]}")
                 messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:10]])
                 row = {
                     'custom_id': f'match-{user_id}',

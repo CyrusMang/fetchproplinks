@@ -69,18 +69,33 @@ def format_size(sqft):
 import chatwoot_api_helpers
 
 templates = {
-    1: ["new_prop_matched_1", ['zh-cn'], 'UTILITY'],
-    2: ["new_prop_matched_2", ['zh-hk', 'zh-cn'], 'UTILITY'],
-    3: ["new_prop_matched_3", ['en', 'zh-hk', 'zh-cn'], 'UTILITY'],
-    4: ["new_prop_matched_4", ['zh-hk', 'zh-cn'], 'UTILITY'],
-    # 5: ["new_prop_matched_5", ['en', 'zh-hk'], 'UTILITY'],
+  '1_zh-cn': ["new_prop_matched_1", 'UTILITY'],
+  '2_zh-cn': ["new_prop_matched_2", 'UTILITY'],
+  '3_zh-cn': ["new_prop_matched_3", 'UTILITY'],
+  '4_zh-cn': ["new_prop_matched_4", 'UTILITY'],
+  # '1_zh-hk': ["new_prop_matched_1", 'UTILITY'],
+  '2_zh-hk': ["new_prop_matched_2", 'UTILITY'],
+  '3_zh-hk': ["new_prop_matched_3", 'UTILITY'],
+  '4_zh-hk': ["new_prop_matched_4", 'UTILITY'],
+  # '1_en': ["new_prop_matched_1", 'UTILITY'],
+  # '2_en': ["new_prop_matched_3", 'UTILITY'], 
+  '3_en': ["new_prop_matched_3", 'UTILITY'],
+  # '4_en': ["new_prop_matched_4", 'UTILITY'],
 }
+
+# templates = {
+#     1: ["new_prop_matched_1", ['zh-cn'], 'UTILITY'],
+#     2: ["new_prop_matched_2", ['zh-hk', 'zh-cn'], 'UTILITY'],
+#     3: ["new_prop_matched_3", ['en', 'zh-hk', 'zh-cn'], 'UTILITY'],
+#     4: ["new_prop_matched_4", ['zh-hk', 'zh-cn'], 'UTILITY'],
+#     # 5: ["new_prop_matched_5", ['en', 'zh-hk'], 'UTILITY'],
+# }
 
 def get_right_num_of_props(num_props, lang):
     if num_props > 4 or num_props < 1:
         raise ValueError(f"Invalid number of properties: {num_props}")
-    template = templates[num_props]
-    if lang not in template[1]:
+    template = templates.get(f"{num_props}_{lang}")
+    if not template:
         return get_right_num_of_props(num_props - 1, lang)
     return num_props
 
@@ -89,7 +104,7 @@ def get_template_and_props(props, lang):
     num_props = min(len(props), 4)
     try:
         right_num = get_right_num_of_props(num_props, lang)
-        return [templates[right_num][0], templates[right_num][2], props[:right_num]]
+        return [templates[f"{right_num}_{lang}"][0], templates[f"{right_num}_{lang}"][1], props[:right_num]]
     except ValueError:
         return None
 
