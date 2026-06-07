@@ -88,7 +88,6 @@ def extract_details(db, driver, link):
         # "thumb_links": [],
         "updated_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
-        "status": "pending_extraction",
     }
 
     if prop:
@@ -96,7 +95,8 @@ def extract_details(db, driver, link):
         print(f"Updated prop {source_id}")
     else:
         meta['created_at'] = datetime.datetime.now().timestamp()
-        Prop.create(db, meta)
+        meta['status'] = "pending_extraction"
+        prop = Prop.create(db, {**meta, "id": str(uuid.uuid4())})
         print(f"Created prop {source_id}")
     
     random_number = random.randint(2, 10)
