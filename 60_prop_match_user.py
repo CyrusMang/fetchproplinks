@@ -126,15 +126,17 @@ def prematch_by_search_criteria(user, listings):
     sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
     if not sc:
         return []
-    district_keywords = [d for d in sc.get('districts', [])]
+    sc_district = sc.get('districts')
     districts = []
-    for dk in district_keywords:
-        lookup_result = lookup_hk_address(dk)
-        if lookup_result and 'SuggestedAddress' in lookup_result:
-            suggestion = lookup_result['SuggestedAddress'][0] 
-            district_info = suggestion.get('Address', {}).get('PremisesAddress', {}).get('GeospatialInformation', {})
-            if district_info:
-                districts.append(district_info)
+    if sc_district:
+        district_keywords = [d for d in sc.get('districts')]
+        for dk in district_keywords:
+            lookup_result = lookup_hk_address(dk)
+            if lookup_result and 'SuggestedAddress' in lookup_result:
+                suggestion = lookup_result['SuggestedAddress'][0] 
+                district_info = suggestion.get('Address', {}).get('PremisesAddress', {}).get('GeospatialInformation', {})
+                if district_info:
+                    districts.append(district_info)
     bedrooms = int(sc.get('bedrooms')) if sc.get('bedrooms') is not None else None
     min_price = int(sc.get('minPrice')) if sc.get('minPrice') is not None else None
     max_price = int(sc.get('maxPrice')) if sc.get('maxPrice') is not None else None

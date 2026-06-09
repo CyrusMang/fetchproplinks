@@ -20,7 +20,7 @@ os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'data'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'backup'), exist_ok=True)
 
-batch_size = 50
+batch_size = 100
 
 def system_prompt(body):
     return f"""

@@ -91,10 +91,11 @@ def main():
             for l in photo_urls:
                 if l not in links:
                     links.append(l)
+            prop_photo_count = 0
             for link in links[:max_photos_per_property]:
                 extracted_data = prop.get('v1_extracted_data', {})
                 
-                existing_photo = photo_collection.find_one({ 'source_id': prop.get('source_id'), 'photo_url': link })
+                existing_photo = photo_collection.find_one({ 'prop_source_id': prop.get('source_id'), 'photo_url': link })
                 if existing_photo:
                     print(f"Photo already exists in collection, skipping: {link}")
                     continue
@@ -142,12 +143,20 @@ def main():
                     'created_at': datetime.now().timestamp(),
                 })
                 processed_count += 1
+                prop_photo_count += 1
                 print(f"Processed photo for property {prop.get('source_id')} ({photo_id}): {link}")
 
-            collection.update_one(
-                { 'source_id': prop.get('source_id') },
-                { '$set': { 'status': 'photo_analysing' } }
-            )
+            if prop_photo_count > 0:
+                collection.update_one(
+                    { 'source_id': prop.get('source_id') },
+                    { '$set': { 'status': 'photo_analysing' } }
+                )
+            else:
+                collection.update_one(
+                    { 'source_id': prop.get('source_id') },
+                    { '$set': { 'status': 'photo_analysed' } }
+                )
+                print(f"No photos to batch for {prop.get('source_id')}, marked as photo_analysed.")
     
     print(f"\nBatch file created: {batch_file_path}")
     print(f"Processed {processed_count} photos for analysis.")

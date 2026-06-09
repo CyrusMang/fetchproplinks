@@ -58,6 +58,40 @@ def download_batch_results(client, batch_info, batch_code):
         print(f"Error downloading results: {e}")
         return None
 
+def process_batch_errors(client, batch_info, batch_code, photo_collection):
+    """Download and process the error file, marking failed photos so props can be resolved."""
+    error_file_id = batch_info.get('error_file_id')
+    if not error_file_id:
+        return set()
+
+    try:
+        file_response = client.files.content(error_file_id)
+        error_source_ids = set()
+        for line in file_response.text.splitlines():
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+                custom_id = data.get('custom_id', '')
+                if not custom_id.startswith('photo-'):
+                    continue
+                photo_id = custom_id.replace('photo-', '')
+                error_info = data.get('error', {})
+                print(f"  ✗ photo {photo_id} failed: {error_info.get('code')} - {error_info.get('message', 'unknown')}")
+                photo = photo_collection.find_one({'photo_id': photo_id})
+                if photo:
+                    photo_collection.update_one(
+                        {'photo_id': photo_id},
+                        {'$set': {'status': 'photo_analysis_failed', 'api_error': error_info}}
+                    )
+                    error_source_ids.add(photo['prop_source_id'])
+            except Exception as e:
+                print(f"Error processing error line: {e}")
+        return error_source_ids
+    except Exception as e:
+        print(f"Error downloading error file: {e}")
+        return set()
+
 def process_photo_analysis_result(result_line, photo_collection):
     """Process a single photo analysis result and update MongoDB."""
     try:
@@ -185,11 +219,22 @@ def main():
                     if source_id:
                         source_ids.add(source_id)
                         total_succeeded += 1
-        
+
+        # Process error file — photos rejected by the API (content policy, etc.)
+        error_source_ids = process_batch_errors(openai_client, batch_info, batch_code, photo_collection)
+
+        # Props with at least one successful photo → photo_analysed
+        # Props that only appear in error_source_ids (no success) → photo_analysis_failed
+        failed_only_ids = error_source_ids - source_ids
         collection.update_many(
             { 'source_id': { '$in': list(source_ids) } },
             { '$set': { 'status': 'photo_analysed' } }
         )
+        if failed_only_ids:
+            collection.update_many(
+                { 'source_id': { '$in': list(failed_only_ids) } },
+                { '$set': { 'status': 'photo_analysis_failed' } }
+            )
 
         print()
         remove_file(batch_file_path)

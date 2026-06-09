@@ -9,7 +9,7 @@ def review(db, driver, prop):
     try:
         driver.get(prop['source_url'])
 
-        time.sleep(3) 
+        time.sleep(1) 
         current_url = driver.current_url
         still_accessible = False
         if current_url == prop['source_url'] or current_url == prop['source_url'] + "/":

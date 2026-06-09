@@ -42,9 +42,10 @@ def main():
     options.add_argument('--disable-dev-shm-usage')
     driver = uc.Chrome(options=options, use_subprocess=True, version_main=148)
     now = datetime.now().timestamp()
+    print(now - 6*3600)
 
     f = {
-        'updated_at': { "$lte": now - 3*24*3600 },  # 3 days ago
+        'updated_at': { "$lte": now - 6*3600 },  # 6 hours ago
         'status': { "$ne": "archived" },
     }
     skip = 0
