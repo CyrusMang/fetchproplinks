@@ -141,6 +141,9 @@ def prematch_by_search_criteria(user, listings):
     min_price = int(sc.get('minPrice')) if sc.get('minPrice') is not None else None
     max_price = int(sc.get('maxPrice')) if sc.get('maxPrice') is not None else None
 
+    min_size = int(sc.get('minSize')) if sc.get('minSize') is not None else None
+    max_size = int(sc.get('maxSize')) if sc.get('maxSize') is not None else None
+
     def matches(prop):
         extracted = prop.get('v1_extracted_data', {})
         subdistrict = prop.get('address', {}).get('subdistrict', {})
@@ -175,6 +178,12 @@ def prematch_by_search_criteria(user, listings):
             if min_price and price < (min_price * 0.8):
                 return False
             if max_price and price > (max_price * 1.1):
+                return False
+        size = extracted.get('net_size_sqft')
+        if size is not None:
+            if min_size and size < (min_size * 0.8):
+                return False
+            if max_size and size > (max_size * 1.2):
                 return False
         return True
 

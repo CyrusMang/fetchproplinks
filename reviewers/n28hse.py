@@ -1,9 +1,10 @@
 import requests
 import time
 from datetime import datetime
+from selenium.webdriver.common.by import By
 from models.prop import Prop
 
-#sign_message = '錯誤'
+# sign_message = '有關資料可能已被移除或隱藏'
 
 def review(db, driver, prop):
     response = requests.get(prop['source_url'], allow_redirects=False)
