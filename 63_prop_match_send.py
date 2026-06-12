@@ -177,7 +177,7 @@ def main():
             result_meta = json.load(rf)
 
         output_file_id = result_meta.get('output_file_id')
-        total_new_props = result_meta.get('total_new_props', 0)
+        total_new_props = result_meta.get('total_new_props', 243)
 
         if not output_file_id:
             print(f"Missing output_file_id in {result_file_path}")
@@ -303,7 +303,7 @@ def main():
 
             print(f"user: {user_id_str}, lang: {lang}, total: {total_new_props}, selected_props: {len(selected_props)}")
             success = chatwoot_api_helpers.send_whatsapp_template(
-                contact_id, lang, template_name, template_category, template_params
+                contact_id, lang, template_name, template_category, template_params, rendered_message
             )
             # success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total_new_props, matched_props)
 

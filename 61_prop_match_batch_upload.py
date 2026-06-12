@@ -77,7 +77,7 @@ def main():
             'input_file_name': file.filename,
             'input_file_size': file.bytes,
             'date': meta.get('date', ''),
-            'total_new_props': meta.get('total_new_props', 0),
+            'total_new_props': meta.get('total_new_props', 241),
         }
 
         tracking_path = os.path.join(folder, 'upload_batches', f"batch-{batch_code}.json")

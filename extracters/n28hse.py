@@ -52,6 +52,8 @@ def extract_details(db, driver, link):
 
     driver.get(link)
     wait = WebDriverWait(driver, 10)
+
+    time.sleep(2)  # Wait for page load
     # try:
     #     phone_element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[attr="phone"]')))
     #     phone_element.click()
@@ -71,22 +73,22 @@ def extract_details(db, driver, link):
     location_parts = [item.text for item in breadcrumb_items[2:]]
 
     image_links = []
-    image_div = driver.find_element(By.ID, 'mySliderPictures')
+    image_div = driver.find_element(By.CSS_SELECTOR, '.slider-block')
     if image_div:
         images = image_div.find_elements(By.CSS_SELECTOR, 'img')
         for img in images:
-            img_src = img.get_attribute('data-src')
+            img_src = img.get_attribute('src')
             if img_src and img_src not in image_links:
                 image_links.append(img_src)
     
-    thumb_links = []
-    thumbs_div = driver.find_element(By.ID, 'mySliderPictures_thumbDiv')
-    if thumbs_div:
-        thumbs = thumbs_div.find_elements(By.CSS_SELECTOR, 'img')
-        for thumb in thumbs:
-            thumb_src = thumb.get_attribute('src')
-            if thumb_src and thumb_src not in thumb_links:
-                thumb_links.append(thumb_src)
+    # thumb_links = []
+    # thumbs_div = driver.find_element(By.ID, 'mySliderPictures_thumbDiv')
+    # if thumbs_div:
+    #     thumbs = thumbs_div.find_elements(By.CSS_SELECTOR, 'img')
+    #     for thumb in thumbs:
+    #         thumb_src = thumb.get_attribute('src')
+    #         if thumb_src and thumb_src not in thumb_links:
+    #             thumb_links.append(thumb_src)
 
     content_body_div = driver.find_element(By.CSS_SELECTOR, '.content_body .ten')
 
@@ -143,7 +145,7 @@ def extract_details(db, driver, link):
         "source_updated_date": updated_date,
         "info": info,
         "image_links": image_links,
-        "thumb_links": thumb_links,
+        #"thumb_links": thumb_links,
         "updated_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
     }

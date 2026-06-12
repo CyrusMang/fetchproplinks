@@ -68,7 +68,7 @@ def main():
                     result_data = json.loads(batch_response.model_dump_json())
                     # Carry forward metadata from tracking file
                     result_data['date'] = content.get('date', '')
-                    result_data['total_new_props'] = content.get('total_new_props', 0)
+                    result_data['total_new_props'] = content.get('total_new_props', 242)
                     rf.write(json.dumps(result_data, ensure_ascii=False))
                 remove_file(file_path)
                 print(f"Batch {batch_code} completed → {result_path}")

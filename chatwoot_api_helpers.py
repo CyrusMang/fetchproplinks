@@ -63,13 +63,14 @@ def get_or_create_contact(phone):
     return contact
 
 
-def send_whatsapp_template(contact_id, lang, template_name, template_category, template_params):
+def send_whatsapp_template(contact_id, lang, template_name, template_category, template_params, content=None):
     # Create a new conversation
     conv_url = f"{CHATWOOT_BASE_URL}/api/v1/accounts/{CHATWOOT_ACCOUNT_ID}/conversations"
     conv_payload = {
         'inbox_id': int(CHATWOOT_INBOX_ID),
         'contact_id': contact_id,
         'message': {
+            'content': content or template_name,
             'template_params': {
                 'name': template_name,
                 'category': template_category,
