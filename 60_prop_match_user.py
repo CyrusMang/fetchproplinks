@@ -48,6 +48,14 @@ def get_yesterday_props(db):
     return list(db['props'].find(f))
 
 
+def get_all_result_files(folder_path):
+    files = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith('-result.json'):
+            files.append(os.path.join(folder_path, filename))
+    return files
+
+
 def get_pending_conversation_by_user_id(db, user_id):
     six_hours_ago = int((datetime.now() - timedelta(hours=6)).timestamp())
     conv = db['conversations'].find_one({ 
@@ -180,7 +188,7 @@ def prematch_by_search_criteria(user, listings):
                 return False
             if max_bedrooms and bedrooms >= max_bedrooms + 1:
                 return False
-        price = extracted.get('rent_price') or extracted.get('sell_price')
+        price = extracted.get('rent_price')
         if price is not None:
             if min_price and price < (min_price * 0.8):
                 return False
@@ -236,7 +244,21 @@ def batch_subscribers(db):
         skip += user_batch_size
 
 
+def move_file(src, dst):
+    try:
+        os.rename(src, dst)
+        print(f"Moved: {src} → {dst}")
+    except Exception as e:
+        print(f"Error moving file {src}: {e}")
+
+
 def main():
+    result_files = get_all_result_files(os.path.join(folder, 'results'))
+    if result_files:
+        for file_path in result_files:
+            print(f"Backup previous result file: {file_path}")
+            move_file(file_path, os.path.join(folder, 'backup', os.path.basename(file_path)))
+
     mongo_client = MongoClient(MONGODB_CONNECTION_STRING)
     db = mongo_client['prop_main']
 

@@ -105,6 +105,12 @@ def extract_details(db, driver, link):
     time.sleep(random_number)  # Wait for page load
 
 
+def _create_driver():
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    return create_uc_driver(options=options, use_subprocess=True, version_main=148)
+
 def extract_rent(db, driver1, driver2):
     driver1.get(settings["RENT_URL"])
     
@@ -113,6 +119,7 @@ def extract_rent(db, driver1, driver2):
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.sc-10pgf2f-3')))
     
     def fetch_link():
+        nonlocal driver2
         # with open(file_path, "a") as of:
         #     writer = csv.writer(of)
         content = driver1.find_element(By.CSS_SELECTOR, '.sc-10pgf2f-3')
@@ -125,6 +132,13 @@ def extract_rent(db, driver1, driver2):
                 extract_details(db, driver2, link)
             except Exception as e:
                 print(f"Error extracting details for {link}: {e}")
+                if "no such window" in str(e) or "web view not found" in str(e):
+                    print("Recreating detail driver due to closed window")
+                    try:
+                        driver2.quit()
+                    except Exception:
+                        pass
+                    driver2 = _create_driver()
     
     def go_next_page():
         # try:
@@ -148,6 +162,8 @@ def extract_rent(db, driver1, driver2):
         has_next = go_next_page()
         if not has_next:
             break
+
+    return driver2
 
 # def extract_sell(db, driver1, driver2):
 #     driver1.get(settings["SELL_URL"])
@@ -204,7 +220,7 @@ def extract():
     options2.add_argument('--disable-dev-shm-usage')
     driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=148)
 
-    extract_rent(db, driver, driver2)
+    driver2 = extract_rent(db, driver, driver2)
     # extract_sell(db, driver, driver2)
 
     driver.quit()

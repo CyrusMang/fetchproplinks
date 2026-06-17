@@ -85,7 +85,12 @@ def main():
             move_file(file_path, os.path.join(folder, "backup", os.path.basename(file_path)))
             continue
 
-        file_response = openai_client.files.content(output_file_id)
+        try:
+            file_response = openai_client.files.content(output_file_id)
+        except Exception as e:
+            print(f"Failed to fetch output file {output_file_id} for batch {batch_code}: {e}")
+            move_file(file_path, os.path.join(folder, "backup", os.path.basename(file_path)))
+            continue
         raw_lines = [line for line in file_response.text.strip().split("\n") if line.strip()]
 
         data_file_path = os.path.join(folder, "data", f"batch-{batch_code}-data.jsonl")

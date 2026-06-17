@@ -28,6 +28,12 @@ settings = {
     #"BUY_URL": "https://www.28hse.com/buy"
 }
 
+def _create_driver():
+    options = uc.ChromeOptions()
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    return create_uc_driver(options=options, use_subprocess=True, version_main=148)
+
 def remove_html_tags(text):
     clean = re.compile('<.*?>')
     return re.sub(clean, '', text)
@@ -176,6 +182,7 @@ def extract_rent(db, driver1, driver2):
     # file_path = os.path.join(FOLDER, f"28hse_links.csv")
     
     def fetch_link():
+        nonlocal driver2
         # with open(file_path, "a") as of:
         #     writer = csv.writer(of)
         content = driver1.find_element(By.ID, 'main_content')
@@ -189,6 +196,13 @@ def extract_rent(db, driver1, driver2):
                     extract_details(db, driver2, link)
                 except Exception as e:
                     print(f"Error extracting details for {link}: {e}")
+                    if "no such window" in str(e) or "web view not found" in str(e):
+                        print("Recreating detail driver due to closed window")
+                        try:
+                            driver2.quit()
+                        except Exception:
+                            pass
+                        driver2 = _create_driver()
             except Exception as e:
                 pass
     
@@ -214,6 +228,8 @@ def extract_rent(db, driver1, driver2):
         if not has_next:
             break
 
+    return driver2
+
 def extract_sell(db, driver1, driver2):
     driver1.get(settings["BUY_URL"])
     
@@ -228,6 +244,7 @@ def extract_sell(db, driver1, driver2):
     # file_path = os.path.join(FOLDER, f"28hse_links.csv")
     
     def fetch_link():
+        nonlocal driver2
         # with open(file_path, "a") as of:
         #     writer = csv.writer(of)
         content = driver1.find_element(By.ID, 'main_content')
@@ -237,9 +254,19 @@ def extract_sell(db, driver1, driver2):
             try:
                 detail_page_link = div.find_element(By.CSS_SELECTOR, 'a.detail_page')
                 link = detail_page_link.get_attribute('href')
-                extract_details(db, driver2, link)
+                try:
+                    extract_details(db, driver2, link)
+                except Exception as e:
+                    print(f"Error extracting details for {link}: {e}")
+                    if "no such window" in str(e) or "web view not found" in str(e):
+                        print("Recreating detail driver due to closed window")
+                        try:
+                            driver2.quit()
+                        except Exception:
+                            pass
+                        driver2 = _create_driver()
             except Exception as e:
-                print(f"Error extracting details for {link}: {e}")
+                pass
     
     def go_next_page(num):
         try:
@@ -263,6 +290,8 @@ def extract_sell(db, driver1, driver2):
         if not has_next:
             break
 
+    return driver2
+
 def extract():
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
@@ -277,8 +306,8 @@ def extract():
     options2.add_argument('--disable-dev-shm-usage')
     driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=148)
 
-    extract_rent(db, driver, driver2)
-    extract_sell(db, driver, driver2)
+    driver2 = extract_rent(db, driver, driver2)
+    driver2 = extract_sell(db, driver, driver2)
 
     driver.quit()
     driver2.quit()

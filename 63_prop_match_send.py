@@ -261,6 +261,7 @@ def main():
                 db['props'].find_one({'source_id': sid})
                 for sid in matched_source_ids
             ]
+            matched_props = [p for p in matched_props if p]  # Filter out None
             lang = user.get('userPreferences', {}).get('language', 'en')
 
             contact = chatwoot_api_helpers.get_or_create_contact(phone)
@@ -295,6 +296,7 @@ def main():
               'type': 'ai',
               'content': rendered_message
             }
+            success=1
             try:
                 conv.add_message(aimsg)
             except Exception as e:
@@ -305,7 +307,7 @@ def main():
             success = chatwoot_api_helpers.send_whatsapp_template(
                 contact_id, lang, template_name, template_category, template_params, rendered_message
             )
-            # success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total_new_props, matched_props)
+            success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total_new_props, matched_props)
 
             conv.conversation_summary()
             conv.archive_messages()
