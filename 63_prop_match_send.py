@@ -289,7 +289,7 @@ def main():
                 template_params[f'prop_{i}_title'] = summary.get(f'headline_{lang.replace("-", "_")}')
                 template_params[f'prop_{i}_price'] = f"${price}"
                 template_params[f'prop_{i}_size'] = f"{size} ft²" if size else "N/A"
-                template_params[f'prop_{i}_link'] = prop.get('source_url')
+                template_params[f'prop_{i}_link'] = f"https://homeable.house/{lang}/{prop.get('id')}"
             
             rendered_message = render_message(len(selected_props), template_params, lang)
             aimsg = {
@@ -307,7 +307,6 @@ def main():
             success = chatwoot_api_helpers.send_whatsapp_template(
                 contact_id, lang, template_name, template_category, template_params, rendered_message
             )
-            success = send_prop_matched_wtsapp_msg.send('rent', phone, lang, total_new_props, matched_props)
 
             conv.conversation_summary()
             conv.archive_messages()

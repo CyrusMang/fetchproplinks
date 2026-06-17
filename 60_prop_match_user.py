@@ -60,7 +60,7 @@ def get_pending_conversation_by_user_id(db, user_id):
     six_hours_ago = int((datetime.now() - timedelta(hours=6)).timestamp())
     conv = db['conversations'].find_one({ 
       'userId': ObjectId(user_id),
-      'updatedAt': {'$lte': six_hours_ago},
+      #'updatedAt': {'$lte': six_hours_ago},
     })
     return conv
 
@@ -231,7 +231,7 @@ def batch_subscribers(db):
         users = list(
             db['users']
             .find({
-                #'_id': ObjectId('6a10d0d92ded380951e84e93'),
+                '_id': ObjectId('6a2b8592bbefe6a9886f5f27'),
                 'identifiers': { '$elemMatch': {'type': 'phone'} },
                 'userPreferences.disableNotifications': { '$ne': True },
             })
