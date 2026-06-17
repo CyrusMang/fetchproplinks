@@ -16,7 +16,7 @@ CHATWOOT_USER_API_TOKEN = os.getenv("CHATWOOT_USER_API_TOKEN", CHATWOOT_API_TOKE
 CHATWOOT_INBOX_ID = os.getenv("CHATWOOT_INBOX_ID")   # WhatsApp inbox ID in Chatwoot
 
 lang_code_map = {
-    'en': 'en_US',
+    'en': 'en',
     'zh-hk': 'zh_HK',
     'zh-cn': 'zh_HK',
 }
