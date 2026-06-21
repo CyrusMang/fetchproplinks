@@ -116,7 +116,7 @@ def render_message(prop_num, params, lang):
             msg += f"- 租金：{params[f'prop_{i}_price']}\n"
             msg += f"- 面積：{params[f'prop_{i}_size']}\n"
             msg += f"- {params[f'prop_{i}_link']}\n\n"
-        msg += "我會繼續幫你留意住市場, 如果有邊幾個單位睇啱話我知, 我幫你約睇樓😊"
+        msg += "我會繼續幫你留意住市場😊"
         return msg
     elif lang == 'zh-cn':
         msg = f"你好，根据你的要求，在{params['total']}个新盘里面找到有{prop_num}个盘合适：\n\n"
@@ -125,7 +125,7 @@ def render_message(prop_num, params, lang):
             msg += f"- 租金：{params[f'prop_{i}_price']}\n"
             msg += f"- 面积：{params[f'prop_{i}_size']}\n"
             msg += f"- {params[f'prop_{i}_link']}\n\n"
-        msg += "我会继续帮你留意市场，如果有哪个单位看合适告诉我，我帮你约看房😊"
+        msg += "我会继续帮你留意市场😊"
         return msg
     else:
         msg = f"Hello, based on your requirements, we found {prop_num} suitable listings among {params['total']} new properties:\n\n"
@@ -134,7 +134,7 @@ def render_message(prop_num, params, lang):
             msg += f"- Price: {params[f'prop_{i}_price']}\n"
             msg += f"- Size: {params[f'prop_{i}_size']}\n"
             msg += f"- {params[f'prop_{i}_link']}\n\n"
-        msg += "I will keep an eye on the market for you. If you are interested in any of these units, let me know and I can help arrange a viewing!😊"
+        msg += "I will keep an eye on the market for you.😊"
         return msg
 
 # ---------------------------------------------------------------------------

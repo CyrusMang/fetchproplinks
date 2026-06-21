@@ -11,6 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchWindowException
 from models.prop import Prop
 # from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -111,12 +112,56 @@ def _create_driver():
     options.add_argument('--disable-dev-shm-usage')
     return create_uc_driver(options=options, use_subprocess=True, version_main=148)
 
+
+def _is_window_closed_error(error):
+    message = str(error).lower()
+    return (
+        isinstance(error, NoSuchWindowException)
+        or "no such window" in message
+        or "target window already closed" in message
+        or "web view not found" in message
+    )
+
+
+def _ensure_driver(driver):
+    try:
+        _ = driver.current_url
+        _ = driver.window_handles
+        return driver
+    except Exception as e:
+        if _is_window_closed_error(e):
+            print("Driver window closed unexpectedly, recreating driver")
+            try:
+                driver.quit()
+            except Exception:
+                pass
+            return _create_driver()
+        raise
+
+
+def _open_listing_page(driver, url):
+    driver = _ensure_driver(driver)
+    try:
+        driver.get(url)
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.sc-10pgf2f-3')))
+        return driver
+    except Exception as e:
+        if _is_window_closed_error(e):
+            print("List page driver closed while loading page, recreating and retrying")
+            try:
+                driver.quit()
+            except Exception:
+                pass
+            driver = _create_driver()
+            driver.get(url)
+            wait = WebDriverWait(driver, 10)
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.sc-10pgf2f-3')))
+            return driver
+        raise
+
 def extract_rent(db, driver1, driver2):
-    driver1.get(settings["RENT_URL"])
-    
-    # Wait for content to load
-    wait = WebDriverWait(driver1, 10)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.sc-10pgf2f-3')))
+    driver1 = _open_listing_page(driver1, settings["RENT_URL"])
     
     def fetch_link():
         nonlocal driver2
@@ -132,7 +177,7 @@ def extract_rent(db, driver1, driver2):
                 extract_details(db, driver2, link)
             except Exception as e:
                 print(f"Error extracting details for {link}: {e}")
-                if "no such window" in str(e) or "web view not found" in str(e):
+                if _is_window_closed_error(e):
                     print("Recreating detail driver due to closed window")
                     try:
                         driver2.quit()
@@ -163,7 +208,7 @@ def extract_rent(db, driver1, driver2):
         if not has_next:
             break
 
-    return driver2
+    return driver1, driver2
 
 # def extract_sell(db, driver1, driver2):
 #     driver1.get(settings["SELL_URL"])
@@ -220,8 +265,14 @@ def extract():
     options2.add_argument('--disable-dev-shm-usage')
     driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=148)
 
-    driver2 = extract_rent(db, driver, driver2)
+    driver, driver2 = extract_rent(db, driver, driver2)
     # extract_sell(db, driver, driver2)
 
-    driver.quit()
-    driver2.quit()
+    try:
+        driver.quit()
+    except Exception:
+        pass
+    try:
+        driver2.quit()
+    except Exception:
+        pass

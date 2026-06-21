@@ -162,7 +162,7 @@ def prematch_by_search_criteria(user, listings):
         subdistrict = prop.get('address', {}).get('subdistrict', {})
         latitude = subdistrict.get('latitude')
         longitude = subdistrict.get('longitude')
-        if districts is not None:
+        if len(districts) > 0:
             if latitude is None or longitude is None:
                 return False
             in_district = False
@@ -231,7 +231,7 @@ def batch_subscribers(db):
         users = list(
             db['users']
             .find({
-                '_id': ObjectId('6a2b8592bbefe6a9886f5f27'),
+                #'_id': ObjectId('6a368da16e749822dd52e650'),
                 'identifiers': { '$elemMatch': {'type': 'phone'} },
                 'userPreferences.disableNotifications': { '$ne': True },
             })
