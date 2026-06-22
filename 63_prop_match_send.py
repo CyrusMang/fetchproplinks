@@ -282,8 +282,8 @@ def main():
             template_name, template_category, selected_props = r
 
             for i, prop in enumerate(selected_props, start=1):
-                extracted = prop.get('v1_extracted_data')
-                summary = prop.get('v1_summary_data')
+                extracted = prop.get('v1_extracted_data', {})
+                summary = prop.get('v1_summary_data', {})
                 size = extracted.get('net_size_sqft')
                 price = extracted.get(f'rent_price')
                 template_params[f'prop_{i}_title'] = summary.get(f'headline_{lang.replace("-", "_")}')
