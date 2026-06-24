@@ -43,6 +43,7 @@ def get_yesterday_props(db):
         'indexing_status': 'indexed',
         'status': {'$ne': 'archived'},
         'created_at': {'$gte': start_ts, '$lt': end_ts},
+        "v1_summary_data.confidence_score": { '$gte': 80 }
     }
     print(f"Querying properties with filter: {f}")
     return list(db['props'].find(f))
@@ -231,7 +232,7 @@ def batch_subscribers(db):
         users = list(
             db['users']
             .find({
-                #'_id': ObjectId('6a368da16e749822dd52e650'),
+                #'_id': ObjectId('6a2b8592bbefe6a9886f5f27'),
                 'identifiers': { '$elemMatch': {'type': 'phone'} },
                 'userPreferences.disableNotifications': { '$ne': True },
             })
