@@ -130,6 +130,14 @@ def lookup_hk_address(keyword):
         print(f"ALS address lookup failed for keyword '{keyword}': {error}")
         return None
 
+def number_or_none(value):
+    try:
+        if value is None:
+            return None
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
 RADIUS_DEG = 1 / 69
 def prematch_by_search_criteria(user, listings):
     sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
@@ -146,17 +154,21 @@ def prematch_by_search_criteria(user, listings):
                 district_info = suggestion.get('Address', {}).get('PremisesAddress', {}).get('GeospatialInformation', {})
                 if district_info:
                     districts.append(district_info)
-    min_bedrooms = int(sc.get('minBedrooms')) if sc.get('minBedrooms') is not None else None
-    max_bedrooms = int(sc.get('maxBedrooms')) if sc.get('maxBedrooms') is not None else None
+    min_bedrooms = number_or_none(sc.get('minBedrooms'))
+    max_bedrooms = number_or_none(sc.get('maxBedrooms'))
 
-    min_price = int(sc.get('minPrice')) if sc.get('minPrice') is not None else None
-    max_price = int(sc.get('maxPrice')) if sc.get('maxPrice') is not None else None
+    min_price = number_or_none(sc.get('minPrice'))
+    max_price = number_or_none(sc.get('maxPrice'))
 
-    min_size = int(sc.get('minSize')) if sc.get('minSize') is not None else None
-    max_size = int(sc.get('maxSize')) if sc.get('maxSize') is not None else None
+    min_size = number_or_none(sc.get('minSize'))
+    max_size = number_or_none(sc.get('maxSize'))
 
-    min_building_age = int(sc.get('minBuildingAge')) if sc.get('minBuildingAge') is not None else None
-    max_building_age = int(sc.get('maxBuildingAge')) if sc.get('maxBuildingAge') is not None else None
+    min_building_age = number_or_none(sc.get('minBuildingAge'))
+    max_building_age = number_or_none(sc.get('maxBuildingAge'))
+
+    with_car_park = sc.get('withCarPark', False)
+    is_village_house = sc.get('isVillageHouse', False)
+    allow_pets = sc.get('allowPets', False)
 
     def matches(prop):
         extracted = prop.get('v1_extracted_data', {})
@@ -183,29 +195,38 @@ def prematch_by_search_criteria(user, listings):
                     break
             if not in_district:
                 return False
-        bedrooms = extracted.get('number_of_bedrooms')
+        bedrooms = number_or_none(extracted.get('number_of_bedrooms'))
         if bedrooms is not None:
             if min_bedrooms and bedrooms <= min_bedrooms:
                 return False
             if max_bedrooms and bedrooms >= max_bedrooms + 1:
                 return False
-        price = extracted.get('rent_price')
+        price = number_or_none(extracted.get('rent_price'))
         if price is not None:
             if min_price and price < (min_price * 0.8):
                 return False
             if max_price and price > (max_price * 1.1):
                 return False
-        size = extracted.get('net_size_sqft')
+        size = number_or_none(extracted.get('net_size_sqft'))
         if size is not None:
             if min_size and size < (min_size * 0.8):
                 return False
             if max_size and size > (max_size * 1.2):
                 return False
-        building_age = extracted.get('building_age')
+        building_age = number_or_none(extracted.get('building_age'))
         if building_age is not None:
             if min_building_age and building_age < min_building_age:
                 return False
             if max_building_age and building_age > max_building_age:
+                return False
+        if with_car_park:
+            if not extracted.get('with_car_park', False):
+                return False
+        if is_village_house:
+            if not extracted.get('is_village_house', False):
+                return False
+        if allow_pets:
+            if not extracted.get('allow_pets', False):
                 return False
         return True
 
