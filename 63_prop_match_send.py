@@ -8,6 +8,7 @@ import requests
 from dotenv import load_dotenv
 # import send_prop_matched_wtsapp_msg
 from models.conversation import Conversation
+from models.langgraph_thread import LanggraphThread
 import chatwoot_api_helpers
 
 load_dotenv()
@@ -248,8 +249,12 @@ def main():
                 print(f"No phone for user {user_id_str}")
                 skipped += 1
                 continue
-
-            conv = Conversation.get_by_user_id(db, user_oid)
+            
+            conv = LanggraphThread.get_by_user_id(db, str(user_oid))
+            is_v2_thread = True
+            if not conv:
+                conv = Conversation.get_by_user_id(db, user_oid)
+                is_v2_thread = False
             if not conv:
                 print(f"No conversation found for user {user_id_str}")
                 skipped += 1
@@ -298,7 +303,15 @@ def main():
             }
             success=1
             try:
-                conv.add_message(aimsg)
+                print(is_v2_thread)
+                if is_v2_thread:
+                    print('Adding message to LanggraphThread')
+                    conv.add_message({
+                        'type': 'ai',
+                        'data': {'content': rendered_message}
+                    })
+                else:
+                    conv.add_message(aimsg)
             except Exception as e:
                 print(f"Failed to add message for user {user_id_str}: {e}")
                 continue
@@ -309,7 +322,8 @@ def main():
             )
 
             conv.conversation_summary()
-            conv.archive_messages()
+            if not is_v2_thread:
+                conv.archive_messages()
 
             if success:
                 sent += 1

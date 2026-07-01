@@ -56,12 +56,20 @@ def get_all_result_files(folder_path):
             files.append(os.path.join(folder_path, filename))
     return files
 
+def get_langgraph_v2_threads_by_user_id(db, user_id):
+    six_hours_ago = int((datetime.now() - timedelta(hours=6)).timestamp())
+    conv = db['langgraph_v2_threads'].find_one({ 
+      'userId': user_id,
+      'v2State': {'$in': ["ACTIVE_TRACKING", "ONBOARDING"]},
+      'updatedAt': {'$lte': six_hours_ago},
+    })
+    return conv
 
 def get_pending_conversation_by_user_id(db, user_id):
     six_hours_ago = int((datetime.now() - timedelta(hours=6)).timestamp())
     conv = db['conversations'].find_one({ 
       'userId': ObjectId(user_id),
-      #'updatedAt': {'$lte': six_hours_ago},
+      'updatedAt': {'$lte': six_hours_ago},
     })
     return conv
 
@@ -71,9 +79,15 @@ def sanitize_conv(conv):
     messages = conv.get('messages', [])
     for m in messages:
         if m.get('type') in ['human', 'system']:
-            meaningful_messages.append(m)
-        elif m.get('type') == 'ai' and m.get('content', '') != '':
-            meaningful_messages.append(m)
+            meaningful_messages.append({
+                'type': m.get('type'),
+                'content': m.get('data', {}).get('content', m.get('content', ''))
+            })
+        elif m.get('type') == 'ai' and m.get('data', {}).get('content', m.get('content', '')) != '':
+            meaningful_messages.append({
+                'type': m.get('type'),
+                'content': m.get('data', {}).get('content', m.get('content', ''))
+            })
     return {
         'old_conversation_summary': conv.get('summary'),
         'recent_messages': meaningful_messages
@@ -140,7 +154,9 @@ def number_or_none(value):
 
 RADIUS_DEG = 1 / 69
 def prematch_by_search_criteria(user, listings):
-    sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
+    sc = user.get('v2LongTermMemory')
+    if not sc:
+        sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
     if not sc:
         return []
     sc_district = sc.get('districts')
@@ -166,9 +182,9 @@ def prematch_by_search_criteria(user, listings):
     min_building_age = number_or_none(sc.get('minBuildingAge'))
     max_building_age = number_or_none(sc.get('maxBuildingAge'))
 
-    with_car_park = sc.get('withCarPark', False)
-    is_village_house = sc.get('isVillageHouse', False)
-    allow_pets = sc.get('allowPets', False)
+    with_car_park = sc.get('haveCar', sc.get('withCarPark', False))
+    is_village_house = sc.get('likeVillageHouse', sc.get('isVillageHouse', False))
+    allow_pets = sc.get('havePets', sc.get('allowPets', False))
 
     def matches(prop):
         extracted = prop.get('v1_extracted_data', {})
@@ -253,7 +269,7 @@ def batch_subscribers(db):
         users = list(
             db['users']
             .find({
-                #'_id': ObjectId('6a2b8592bbefe6a9886f5f27'),
+                '_id': ObjectId('6a121aa550d63d4a93fb4a3f'),
                 'identifiers': { '$elemMatch': {'type': 'phone'} },
                 'userPreferences.disableNotifications': { '$ne': True },
             })
@@ -302,7 +318,9 @@ def main():
         for user_batch in batch_subscribers(db):
             for user in user_batch:
                 user_id = str(user.get('_id'))
-                conv = get_pending_conversation_by_user_id(db, user_id)
+                conv = get_langgraph_v2_threads_by_user_id(db, user_id)
+                if not conv:
+                    conv = get_pending_conversation_by_user_id(db, user_id)
                 if not conv:
                     print(f"No pending conversation found for user {user_id}, skipping.")
                     continue
