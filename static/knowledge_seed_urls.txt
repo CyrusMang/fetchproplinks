@@ -1,0 +1,10 @@
+# Seed URLs for 70_fetch_knowledge.py
+# One URL per line.
+# Blank lines and lines starting with # are ignored.
+# Inline comments are also supported:
+# https://example.com/some-page  # note
+
+https://www.gov.hk/en/residents/taxes/stamp/stamp_duty_rates.htm
+https://www.gov.hk/en/residents/housing/
+https://www.clic.org.hk/en/topics/landlord_tenant/all
+https://www.clic.org.hk/en/topics/saleAndPurchaseOfProperty/all
