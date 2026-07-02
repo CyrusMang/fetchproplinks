@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -28,6 +29,70 @@ def get_embedding(text):
         input=[text], model=embedding_model
     ).data[0].embedding
     return embedding
+
+
+def parse_first_number(value):
+    """Extract first numeric value from int/float/string fields."""
+    if value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if isinstance(value, str):
+        match = re.search(r"\d+(?:\.\d+)?", value)
+        if match:
+            return float(match.group(0))
+
+    return None
+
+
+def bedroom_bucket(value):
+    number = parse_first_number(value)
+    if number is None:
+        return None
+    if number <= 0:
+        return "Layout type: studio"
+    if number <= 1:
+        return "Layout type: one_bedroom"
+    if number <= 2:
+        return "Layout type: two_bedroom"
+    if number <= 3:
+        return "Layout type: three_bedroom"
+    return "Layout type: four_plus_bedroom"
+
+
+def bathroom_bucket(value):
+    number = parse_first_number(value)
+    if number is None:
+        return None
+    if number <= 1:
+        return "Bathroom type: single_bathroom"
+    if number <= 2:
+        return "Bathroom type: two_bathrooms"
+    return "Bathroom type: three_plus_bathrooms"
+
+
+def building_age_bucket(value):
+    number = parse_first_number(value)
+    if number is None:
+        return None
+    if number <= 5:
+        return "Building age group: new_building"
+    if number <= 20:
+        return "Building age group: mid_age_building"
+    return "Building age group: older_building"
+
+
+def floor_bucket(value):
+    number = parse_first_number(value)
+    if number is None:
+        return None
+    if number <= 10:
+        return "Floor group: low_floor"
+    if number <= 30:
+        return "Floor group: mid_floor"
+    return "Floor group: high_floor"
 
 
 def extract_indexing_text(prop):
@@ -103,16 +168,28 @@ def extract_indexing_text(prop):
     # Building attributes
     bedrooms = extracted.get("number_of_bedrooms")
     bathrooms = extracted.get("number_of_bathrooms")
-    if bedrooms:
-        parts.append(f"{bedrooms} bedroom")
-    if bathrooms:
-        parts.append(f"{bathrooms} bathroom")
+    if bedrooms is not None:
+        parts.append(f"Bedrooms: {bedrooms}")
+        bedrooms_group = bedroom_bucket(bedrooms)
+        if bedrooms_group:
+            parts.append(bedrooms_group)
+    if bathrooms is not None:
+        parts.append(f"Bathrooms: {bathrooms}")
+        bathrooms_group = bathroom_bucket(bathrooms)
+        if bathrooms_group:
+            parts.append(bathrooms_group)
     building_age = extracted.get("building_age")
-    if building_age:
+    if building_age is not None:
         parts.append(f"Building age: {building_age} years")
+        age_group = building_age_bucket(building_age)
+        if age_group:
+            parts.append(age_group)
     floor = extracted.get("floor")
-    if floor:
+    if floor is not None:
         parts.append(f"Floor: {floor}")
+        floor_group = floor_bucket(floor)
+        if floor_group:
+            parts.append(floor_group)
 
     # Estate/building name
     estate = extracted.get("estate_or_building_name")
