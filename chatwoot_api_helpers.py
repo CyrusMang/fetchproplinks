@@ -18,7 +18,7 @@ CHATWOOT_INBOX_ID = os.getenv("CHATWOOT_INBOX_ID")   # WhatsApp inbox ID in Chat
 lang_code_map = {
     'en': 'en',
     'zh-hk': 'zh_HK',
-    'zh-cn': 'zh_HK',
+    'zh-cn': 'zh_CN',
 }
 
 def chatwoot_headers():
@@ -74,7 +74,7 @@ def send_whatsapp_template(contact_id, lang, template_name, template_category, t
             'template_params': {
                 'name': template_name,
                 'category': template_category,
-                'language': lang_code_map.get(lang, 'en_US'),
+                'language': lang_code_map.get(lang, 'zh_CN'),
                 'processed_params': template_params,
             }
         },
