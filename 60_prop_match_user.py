@@ -269,9 +269,10 @@ def batch_subscribers(db):
         users = list(
             db['users']
             .find({
-                '_id': ObjectId('6a2b8592bbefe6a9886f5f27'),
+                #'_id': ObjectId('6a2b8592bbefe6a9886f5f27'),
                 'identifiers': { '$elemMatch': {'type': 'phone'} },
                 'userPreferences.disableNotifications': { '$ne': True },
+                'v2State': { '$nin': ['MUTED', 'OFFBOARDED'] },
             })
             .skip(skip)
             .limit(user_batch_size)
