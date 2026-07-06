@@ -136,8 +136,8 @@ def main():
                 skipped += 1
                 continue
 
-            # Fetch matched props (up to 4)
-            matched_source_ids = matched_ids[:4]
+            # Fetch matched props (up to 2)
+            matched_source_ids = matched_ids[:2]
             matched_props = [
                 db['props'].find_one({'source_id': sid})
                 for sid in matched_source_ids

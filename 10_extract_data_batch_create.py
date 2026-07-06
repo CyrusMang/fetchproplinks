@@ -54,11 +54,11 @@ Extract the useful information about the property into the following JSON format
     "building_age": number|null,
     "is_village_house": boolean|null,
     "allow_pets": boolean|null,
+    "is_direct_owner_listing": boolean|null,
     "with_car_park": boolean|null,
     "nearby_places": [ "string", ... ],
     "transportation_options": [ "string", ... ],
     "additional_notes": "string",
-    "additional_information_in_json": {{ "key": "value", ...}},
     "information_updated_date": "string",
     "posted_date": "string",
     "post_updated_date": "string"
