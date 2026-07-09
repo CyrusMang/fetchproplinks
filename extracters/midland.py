@@ -110,7 +110,7 @@ def _create_driver():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    return create_uc_driver(options=options, use_subprocess=True, version_main=148)
+    return create_uc_driver(options=options, use_subprocess=True)
 
 
 def _is_window_closed_error(error):
@@ -258,12 +258,12 @@ def extract():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = create_uc_driver(options=options, use_subprocess=True, version_main=148)
+    driver = create_uc_driver(options=options, use_subprocess=True)
 
     options2 = uc.ChromeOptions()
     options2.add_argument('--no-sandbox')
     options2.add_argument('--disable-dev-shm-usage')
-    driver2 = create_uc_driver(options=options2, use_subprocess=True, version_main=148)
+    driver2 = create_uc_driver(options=options2, use_subprocess=True)
 
     driver, driver2 = extract_rent(db, driver, driver2)
     # extract_sell(db, driver, driver2)

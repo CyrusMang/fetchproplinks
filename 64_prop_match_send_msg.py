@@ -124,7 +124,7 @@ def rendered_message_text(text, lang):
 
 def get_active_users_with_pending_queue(db):
     query = {
-        #'_id': ObjectId('6a2b8592bbefe6a9886f5f27'),
+        #'_id': ObjectId('6a4f4301336fe9d9fe9539ee'),
         'identifiers': {'$elemMatch': {'type': 'phone'}},
         'userPreferences.disableNotifications': {'$ne': True},
         'v2State': {'$nin': ['MUTED', 'OFFBOARDED']},

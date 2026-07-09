@@ -5,6 +5,7 @@ import undetected_chromedriver as uc
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from reviewers import n28hse, house730, midland
+from utils.uc_driver import create_uc_driver
 
 load_dotenv()
 
@@ -40,7 +41,7 @@ def main():
     options = uc.ChromeOptions()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = uc.Chrome(options=options, use_subprocess=True, version_main=148)
+    driver = create_uc_driver(options=options, use_subprocess=True)
     now = datetime.now().timestamp()
     print(now - 6*3600)
 
