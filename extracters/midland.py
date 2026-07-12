@@ -5,6 +5,8 @@ import uuid
 import time
 import re
 import random
+import trafilatura
+from trafilatura.utils import trim
 from pymongo import MongoClient
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
@@ -79,6 +81,18 @@ def extract_details(db, driver, link):
     #         thumb_links.append(thumb_src)
 
     content_body_div = driver.find_element(By.CSS_SELECTOR, 'main')
+
+    # html = trafilatura.extract(
+    #     content_body_div.get_attribute('outerHTML'),
+    #     output_format="markdown",
+    #     include_tables=True,
+    #     include_links=True,
+    #     include_images=True,
+    #     include_comments=False,
+    #     deduplicate=True,
+    # )
+
+    # html = trim(html)
     
     meta = {
         "source_channel": "midland",
@@ -90,6 +104,7 @@ def extract_details(db, driver, link):
         # "thumb_links": [],
         "updated_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
+        #"is_markdown": True,
     }
 
     if prop:

@@ -237,6 +237,16 @@ def main():
             )
 
         print()
+
+        try:
+            openai_client.files.delete(batch_info['output_file_id'])
+            input_file_id = batch_info.get('input_file_id')
+            if input_file_id:
+                openai_client.files.delete(input_file_id)
+            print(f"Deleted OpenAI files for batch {batch_code}")
+        except Exception as e:
+            print(f"Error deleting OpenAI files for batch {batch_code}: {e}")
+
         remove_file(batch_file_path)
         #remove_file(result_file_path)
     

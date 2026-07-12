@@ -5,6 +5,8 @@ import uuid
 import time
 import re
 import random
+import trafilatura
+from trafilatura.utils import trim
 from pymongo import MongoClient
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
@@ -63,6 +65,18 @@ def extract_details(db, driver2, link):
 
     content_body_div = driver2.find_element(By.ID, 'pc-services-detail')
 
+    # html = trafilatura.extract(
+    #     content_body_div.get_attribute('outerHTML'),
+    #     output_format="markdown",
+    #     include_tables=True,
+    #     include_links=True,
+    #     include_images=True,
+    #     include_comments=False,
+    #     deduplicate=True,
+    # )
+
+    # html = trim(html)
+
     meta = {
         "source_channel": "house730",
         "source_id": source_id,
@@ -72,6 +86,7 @@ def extract_details(db, driver2, link):
         "updated_at": datetime.datetime.now().timestamp(),
         "image_links": image_links,
         "source_html_content": content_body_div.get_attribute('outerHTML'),
+        #"is_markdown": True,
     }
 
     if prop:

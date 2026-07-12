@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import re
 import statistics
@@ -753,7 +754,56 @@ def render_district_markdown(district_report, region):
 				f"  - {building['estate_or_building_name']}: {building['property_count']} properties, no valid 呎價"
 			)
 
+		if building["bedroom_rent_summary"]:
+			bedroom_text = ", ".join(
+				f"{item['bedroom_group']}: avg HK${item['avg_rent_price']:.2f} ({item['property_count']} properties)"
+				for item in building["bedroom_rent_summary"]
+			)
+			lines.append(f"    rent by bedroom: {bedroom_text}")
+		else:
+			lines.append("    rent by bedroom: no valid bedroom/rent data")
+
 	return "\n".join(lines).strip() + "\n"
+
+
+def render_full_report_markdown(report):
+	lines = []
+	lines.append("# District 呎價 Report")
+	lines.append("")
+	lines.append(f"Generated at: {report['generated_at']}")
+	lines.append("")
+	lines.append("## Overview")
+	lines.append(f"- Total listings scanned: {report['total_listings']}")
+	lines.append(f"- Listings with 呎價: {report['priced_listings']}")
+	lines.append(f"- Districts found: {report['district_count']}")
+	if report["overall_avg_sqft_price"] is not None:
+		lines.append(f"- Overall average 呎價: HK${report['overall_avg_sqft_price']:.2f}")
+	if report["overall_median_sqft_price"] is not None:
+		lines.append(f"- Overall median 呎價: HK${report['overall_median_sqft_price']:.2f}")
+	lines.append("")
+
+	lines.append("## District Breakdown")
+	for district in report["districts"]:
+		region = get_region_for_district(district["district"])
+		lines.append(render_district_markdown(district, region).strip())
+		lines.append("")
+
+	return "\n".join(lines).strip() + "\n"
+
+
+def write_report_files(report, output_dir):
+	os.makedirs(output_dir, exist_ok=True)
+	timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+	json_path = os.path.join(output_dir, f"district_sqft_price_report-{timestamp}.json")
+	md_path = os.path.join(output_dir, f"district_sqft_price_report-{timestamp}.md")
+
+	with open(json_path, "w", encoding="utf-8") as json_file:
+		json.dump(report, json_file, ensure_ascii=False, indent=2)
+
+	with open(md_path, "w", encoding="utf-8") as md_file:
+		md_file.write(render_full_report_markdown(report))
+
+	return json_path, md_path
 
 
 def build_district_snapshot_document(district_report, report_generated_at):
@@ -782,8 +832,20 @@ def build_district_snapshot_document(district_report, report_generated_at):
 			{
 				"name": building["estate_or_building_name"],
 				"listing_count": building["property_count"],
+				"priced_property_count": building["priced_property_count"],
+				"sized_property_count": building["sized_property_count"],
 				"avg_price_per_sqft": building["avg_sqft_price"],
+				"median_price_per_sqft": building["median_sqft_price"],
 				"avg_net_size": building["avg_net_size_sqft"],
+				"median_net_size": building["median_net_size_sqft"],
+				"rent_by_bedroom": [
+					{
+						"bedroom_group": bedroom_item["bedroom_group"],
+						"property_count": bedroom_item["property_count"],
+						"avg_rent_price": bedroom_item["avg_rent_price"],
+					}
+					for bedroom_item in building["bedroom_rent_summary"]
+				],
 			}
 			for building in district_report["buildings"]
 		],
@@ -833,7 +895,7 @@ def main():
 	parser.add_argument(
 		"--output-dir",
 		default=REPORT_DIR,
-		help="Deprecated. Report files are no longer written; kept for backward compatibility.",
+		help="Directory where JSON/Markdown reports will be written.",
 	)
 	args = parser.parse_args()
 
@@ -858,7 +920,10 @@ def main():
 			return
 
 		updated_count = persist_report_to_db(db, report)
+		json_path, md_path = write_report_files(report, args.output_dir)
 		print(f"Saved {updated_count} district snapshot(s) to district_market_stats.")
+		print(f"JSON report written to: {json_path}")
+		print(f"Markdown report written to: {md_path}")
 	finally:
 		client.close()
 

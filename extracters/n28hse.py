@@ -15,6 +15,8 @@ from models.prop import Prop
 # from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from utils.uc_driver import create_uc_driver
+import trafilatura
+from trafilatura.utils import trim
 
 load_dotenv()
 
@@ -185,6 +187,18 @@ def extract_details(db, driver, link):
             if values:
                 info[remove_html_tags(names[0].text)] = remove_html_tags(values[0].text)
 
+    # html = trafilatura.extract(
+    #     content_body_div.get_attribute('outerHTML'),
+    #     output_format="markdown",
+    #     include_tables=True,
+    #     include_links=True,
+    #     include_images=True,
+    #     include_comments=True,
+    #     deduplicate=True,
+    # )
+
+    # html = trim(html)
+
     meta = {
         "source_channel": "28hse",
         "source_id": source_id,
@@ -203,6 +217,7 @@ def extract_details(db, driver, link):
         #"thumb_links": thumb_links,
         "updated_at": datetime.datetime.now().timestamp(),
         "source_html_content": content_body_div.get_attribute('outerHTML'),
+        #"is_markdown": True,
     }
 
     if prop:

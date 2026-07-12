@@ -4,7 +4,5 @@
 # Inline comments are also supported:
 # https://example.com/some-page  # note
 
-https://www.gov.hk/en/residents/taxes/stamp/stamp_duty_rates.htm
-https://www.gov.hk/en/residents/housing/
-https://www.clic.org.hk/en/topics/landlord_tenant/all
-https://www.clic.org.hk/en/topics/saleAndPurchaseOfProperty/all
+https://www.moneyhero.com.hk/blog/zh/%E5%88%9D%E6%AC%A1%E7%A7%9F%E6%A8%93-%E6%96%B0%E6%89%8B-%E7%A7%9F%E5%B1%8B-%E9%A0%88%E7%9F%A5-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A0%85
+https://www.spacious.hk/zh-tw/blog/spacious%E6%BA%AB%E9%A6%A8%E6%8F%90%E7%A4%BA%EF%BC%9A%E9%A6%99%E6%B8%AF%E7%A7%9F%E5%B1%8B10%E5%A4%A7%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A0%85/
