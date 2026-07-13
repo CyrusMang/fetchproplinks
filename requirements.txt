@@ -7,3 +7,4 @@ playwright>=1.47.0
 python-dotenv>=1.0.1
 tiktoken>=0.8.0
 trafilatura>=1.12.2
+argon2-cffi>=23.1.0
