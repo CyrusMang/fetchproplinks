@@ -55,6 +55,7 @@ Extract the useful information about the property into the following JSON format
     "is_village_house": boolean|null,
     "allow_pets": boolean|null,
     "is_direct_owner_listing": boolean|null,
+    "accept_short_term_rental": boolean|null,
     "with_car_park": boolean|null,
     "nearby_places": [ "string", ... ],
     "transportation_options": [ "string", ... ],

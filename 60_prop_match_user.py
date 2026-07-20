@@ -330,7 +330,7 @@ def main():
                     print(f"No listings match search criteria for user {user_id}, skipping.")
                     continue
                 print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.: {[p['source_id'] for p in filtered_listings[:6]]}")
-                messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:10]])
+                messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:6]])
                 row = {
                     'custom_id': f'match-{user_id}',
                     'method': 'POST',
