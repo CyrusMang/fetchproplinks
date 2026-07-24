@@ -52,7 +52,11 @@ def main():
                     collection.update_one(
                         { 'source_id': source_id },
                         { 
-                            '$set': { 'v1_extracted_data': res_json, 'status': 'data_extracted' },
+                            '$set': { 
+                                'v1_extracted_data': res_json, 
+                                'status': 'data_extracted',
+                                'source_html_content': None,
+                            },
                         }
                     )
                     print(f"Updated source {source_id} with extracted data.")
