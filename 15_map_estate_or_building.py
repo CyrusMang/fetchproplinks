@@ -9,8 +9,7 @@ import requests
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
-from models.estate_building import EstateBuilding
-from models.place import Place
+# from models.place import Place
 
 load_dotenv()
 
@@ -34,6 +33,99 @@ def normalize_text(value):
     return ''
   text = str(value).strip()
   return text if text else ''
+
+
+def get_address_en_name(en):
+  if not en:
+    return ''
+
+  eng_estate = en.get('EngEstate', {}) or {}
+  eng_phase = eng_estate.get('EngPhase', {}) or {}
+  eng_block = en.get('EngBlock', {}) or {}
+
+  parts = [
+    normalize_text(en.get('BuildingName')),
+    normalize_text(eng_estate.get('EstateName')),
+    normalize_text(eng_phase.get('PhaseName')),
+    normalize_text(eng_block.get('BlockDescriptor')),
+    normalize_text(eng_block.get('BlockNo')),
+  ]
+  return ' '.join([part for part in parts if part])
+
+
+def get_address_chi_name(zh):
+  if not zh:
+    return ''
+
+  chi_estate = zh.get('ChiEstate', {}) or {}
+  chi_phase = chi_estate.get('ChiPhase', {}) or {}
+  chi_block = zh.get('ChiBlock', {}) or {}
+
+  parts = [
+    normalize_text(zh.get('BuildingName')),
+    normalize_text(chi_estate.get('EstateName')),
+    normalize_text(chi_phase.get('PhaseName')),
+    normalize_text(chi_block.get('BlockDescriptor')),
+    normalize_text(chi_block.get('BlockNo')),
+  ]
+  return ' '.join([part for part in parts if part])
+
+
+def create_building_estate_record(db, premises):
+  eng = premises.get('EngPremisesAddress', {}) or {}
+  chi = premises.get('ChiPremisesAddress', {}) or {}
+  geo = premises.get('GeospatialInformation', {}) or {}
+
+  eng_street = eng.get('EngStreet', {}) or {}
+  chi_street = chi.get('ChiStreet', {}) or {}
+
+  latitude = float(geo['Latitude']) if geo.get('Latitude') else None
+  longitude = float(geo['Longitude']) if geo.get('Longitude') else None
+  now = datetime.now().timestamp()
+
+  subdistrict = lookup_sub_district_by_geo_location(db, latitude, longitude)
+  subdistrict_info = {
+    'subdistrict_id': subdistrict['_id'],
+    'name': subdistrict.get('subDistrictName'),
+    'name_en': subdistrict.get('subDistrictNameEN'),
+    'district_code': subdistrict.get('districtCode'),
+  } if subdistrict else None
+
+  data = {
+    'name': {
+      'en': get_address_en_name(eng),
+      'zh-hk': get_address_chi_name(chi),
+    },
+    'address': {
+      'district': {
+        'en': (eng.get('EngDistrict') or {}).get('DcDistrict'),
+        'zh-hk': (chi.get('ChiDistrict') or {}).get('DcDistrict'),
+      },
+      'street': {
+        'en': eng_street.get('StreetName'),
+        'zh-hk': chi_street.get('StreetName'),
+      },
+      'region': {
+        'en': eng.get('Region'),
+        'zh-hk': chi.get('Region'),
+      },
+      'geoLocation': {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+    },
+    'type': 'building',
+    'tower': None,
+    'builtIn': None,
+    'created_at': now,
+    'updated_at': now,
+  }
+  if data['name']['en'] or data['name']['zh-hk']:
+    db['estate_buildings'].update_one(
+      {'$or': [{'name.en': data['name']['en']}, {'name.zh-hk': data['name']['zh-hk']}]},
+      {'$set': data},
+      upsert=True
+    )
 
 
 def pick_place(places, estate_or_building_name):
@@ -138,6 +230,7 @@ def search_estate_address(db, prop):
         'source': 'als_gov_hk',
       }
 
+    create_building_estate_record(db, premises)
     return {
       'geo_address': premises.get('GeoAddress'),
       'en': {
