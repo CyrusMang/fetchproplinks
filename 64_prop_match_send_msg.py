@@ -1,5 +1,7 @@
 import os
-from datetime import datetime
+import time
+import uuid
+from datetime import datetime, timedelta
 from bson import ObjectId
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -75,8 +77,8 @@ def build_caption(prop, lang):
     return f"{title} - {', '.join(details)}"
 
 
-def first_pending_push_item(user):
-    for item in user.get('push_properties', []):
+def first_pending_push_item(conv):
+    for item in conv.get('push_properties', []):
         if item.get('status') == 'pending' and item.get('property_id'):
             return item
     return None
@@ -121,22 +123,45 @@ def rendered_message_text(text, lang):
         msg += "Just let me know anytime if you want to pause these notifications."
         return msg
 
-
-def get_active_users_with_pending_queue(db):
+def get_active_convs_with_pending_queue(db):
+    three_hours_ago = int((datetime.now() - timedelta(hours=3)).timestamp())
     query = {
-        #'_id': ObjectId('6a4f4301336fe9d9fe9539ee'),
-        'identifiers': {'$elemMatch': {'type': 'phone'}},
-        'userPreferences.disableNotifications': {'$ne': True},
-        'v2State': {'$nin': ['MUTED', 'OFFBOARDED']},
+        #'threadId': '+85269098658',
+        'state': {'$in': ["ACTIVE_TRACKING"]},
+        'updatedAt': {'$lte': three_hours_ago},
         'push_properties': {'$elemMatch': {'status': 'pending'}},
     }
-    return db['users'].find(query)
+    return db['conversations-v2'].find(query)
 
+def get_user_by_user_id(db, user_id):
+    if not user_id:
+        return None
+    try:
+        user = db['users'].find_one({'_id': user_id})
+        if user:
+            return user
+    except Exception:
+        pass
 
-def mark_push_item_sent(db, user_id, property_id):
-    result = db['users'].update_one(
+    return None
+
+def conv_save_push(db, conv, rendered_message, property_id):
+    message = {
+        'type': 'ai',
+        'data': {
+            "content": rendered_message,
+            "additional_kwargs": {
+                'push_prop': True,
+                'id': str(uuid.uuid4()),
+                'index': conv.get('counter'),
+                'createdAt': int(time.time()),
+            }
+        }
+    }
+    result = db['conversations-v2'].update_one(
         {
-            '_id': user_id,
+            '_id': conv.get('_id'),
+            'counter': conv.get('counter'),
             'push_properties': {
                 '$elemMatch': {
                     'property_id': property_id,
@@ -145,6 +170,8 @@ def mark_push_item_sent(db, user_id, property_id):
             },
         },
         {
+            '$push': {'messages': message},
+            '$inc': {'counter': 1},
             '$set': {
                 'push_properties.$.status': 'sent',
                 'updatedAt': int(datetime.now().timestamp()),
@@ -169,17 +196,20 @@ def main():
     skipped = 0
     failed = 0
 
-    for user in get_active_users_with_pending_queue(db):
-        user_id = user.get('_id')
-        user_id_str = str(user_id)
-
-        phone = next((i.get('key') for i in user.get('identifiers', []) if i.get('type') == 'phone'), '')
-        if not phone:
-            print(f"No phone for user {user_id_str}")
+    for conv in get_active_convs_with_pending_queue(db):
+        user = get_user_by_user_id(db, conv['userId'])
+        if not user:
+            print(f"User not found for conversation {conv.get('_id')}")
             skipped += 1
             continue
 
-        pending_item = first_pending_push_item(user)
+        phone = next((i.get('key') for i in user.get('identifiers', []) if i.get('type') == 'phone' and i.get('key') == conv.get('threadId')), '')
+        if not phone:
+            print(f"No phone for user {user.get('_id')}")
+            skipped += 1
+            continue
+
+        pending_item = first_pending_push_item(conv)
         if not pending_item:
             skipped += 1
             continue
@@ -187,38 +217,28 @@ def main():
         property_id = pending_item.get('property_id')
         prop = find_prop_by_property_id(db, property_id)
         if not prop:
-            print(f"Property not found for user {user_id_str}, property_id={property_id}")
+            print(f"Property not found for user {user.get('_id')}, property_id={property_id}")
             failed += 1
             continue
 
-        conv = LanggraphThread.get_by_user_id(db, user_id_str)
-        is_v2_thread = True
-        if not conv:
-            conv = Conversation.get_by_user_id(db, user_id)
-            is_v2_thread = False
-        if not conv:
-            print(f"No conversation found for user {user_id_str}")
-            skipped += 1
-            continue
-
-        lang = normalize_lang(user.get('v2Language', user.get('userPreferences', {}).get('language', 'zh-hk')))
+        lang = normalize_lang(conv.get('language', 'zh-hk'))
         template_name, template_category = templates.get(lang, templates['zh-hk'])
 
         contact = chatwoot_api_helpers.get_or_create_contact(phone)
         if not contact:
-            print(f"Failed to get or create contact for {user_id_str}")
+            print(f"Failed to get or create contact for {user.get('_id')}")
             failed += 1
             continue
 
         contact_id = contact.get('id')
         if not contact_id:
-            print(f"Contact found but missing ID for {user_id_str}")
+            print(f"Contact found but missing ID for {user.get('_id')}")
             failed += 1
             continue
 
         prop_id = prop.get('id')
         if not prop_id:
-            print(f"Property missing id for user {user_id_str}, property_id={property_id}")
+            print(f"Property missing id for user {user.get('_id')}, property_id={property_id}")
             failed += 1
             continue
 
@@ -229,6 +249,13 @@ def main():
             'link': link,
         }
         rendered_message = rendered_message_text(f"{caption}\n{link}", lang)
+
+        result = conv_save_push(db, conv, rendered_message, property_id)
+
+        if not result:
+            print(f"Failed to save push message for user {user.get('_id')}, property_id={property_id}")
+            failed += 1
+            continue
 
         success = chatwoot_api_helpers.send_whatsapp_template(
             contact_id,
@@ -243,23 +270,8 @@ def main():
             failed += 1
             continue
 
-        updated = mark_push_item_sent(db, user_id, property_id)
-        if not updated:
-            print(f"Sent but failed to mark sent for user {user_id_str}, property_id={property_id}")
-
-        try:
-            if is_v2_thread:
-                conv.add_message({'type': 'ai', 'data': {'content': rendered_message}})
-            else:
-                conv.add_message({'type': 'ai', 'content': rendered_message})
-            conv.conversation_summary()
-            if not is_v2_thread:
-                conv.archive_messages()
-        except Exception as e:
-            print(f"Failed to add conversation message for user {user_id_str}: {e}")
-
         sent += 1
-        print(f"user: {user_id_str}, lang: {lang}, sent_property_id: {property_id}")
+        print(f"user: {user.get('_id')}, lang: {lang}, sent_property_id: {property_id}")
 
     print(f"Done: sent={sent}, skipped={skipped}, failed={failed}")
     mongo_client.close()

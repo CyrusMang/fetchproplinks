@@ -101,12 +101,12 @@ def main():
             if not custom_id.startswith('match-'):
                 continue
 
-            # Extract user ObjectId
-            user_id_str = custom_id.replace('match-', '', 1)
+            # Extract conv ObjectId
+            conv_id_str = custom_id.replace('match-', '', 1)
             try:
-                user_oid = ObjectId(user_id_str)
+                conv_oid = ObjectId(conv_id_str)
             except Exception:
-                print(f"Invalid user_id in custom_id: {custom_id}")
+                print(f"Invalid conv_id in custom_id: {custom_id}")
                 skipped += 1
                 continue
 
@@ -127,12 +127,12 @@ def main():
             matched_ids = llm_result.get('matched_source_ids', [])
             if not matched_ids:
                 skipped += 1
-                continue  # No matches for this user — skip
+                continue  # No matches for this conversation — skip
 
-            # Fetch user from MongoDB
-            user = db['users'].find_one({'_id': user_oid})
-            if not user:
-                print(f"User not found: {user_id_str}")
+            # Fetch conv from MongoDB
+            conv = db['conversations-v2'].find_one({'_id': conv_oid})
+            if not conv:
+                print(f"Conversation not found: {conv_id_str}")
                 skipped += 1
                 continue
 
@@ -155,12 +155,12 @@ def main():
                 })
 
             if not push_items:
-                print(f"No valid matched properties for user {user_id_str}")
+                print(f"No valid matched properties for conv {conv_id_str}")
                 skipped += 1
                 continue
 
-            update_result = db['users'].update_one(
-                {'_id': user_oid},
+            update_result = db['conversations-v2'].update_one(
+                {'_id': conv_oid},
                 {
                     '$push': {'push_properties': {'$each': push_items}},
                     '$set': {'updatedAt': int(datetime.now().timestamp())},
@@ -169,10 +169,10 @@ def main():
 
             if update_result.modified_count > 0:
                 sent += 1
-                print(f"Updated user {user_id_str}: appended {len(push_items)} push_properties item(s)")
+                print(f"Updated conversation {conv_id_str}: appended {len(push_items)} push_properties item(s)")
             else:
                 failed += 1
-                print(f"Failed to update user {user_id_str}: no document modified")
+                print(f"Failed to update conversation {conv_id_str}: no document modified")
 
         print(f"Batch {batch_code}: sent={sent}, skipped={skipped}, failed={failed}")
 

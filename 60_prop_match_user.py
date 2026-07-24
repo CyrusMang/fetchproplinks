@@ -25,6 +25,7 @@ os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'data'), exist_ok=True)
 
 user_batch_size = 100
+conv_batch_size = 100
 
 
 def gen_batch_code():
@@ -56,23 +57,15 @@ def get_all_result_files(folder_path):
             files.append(os.path.join(folder_path, filename))
     return files
 
-def get_langgraph_v2_threads_by_user_id(db, user_id):
-    six_hours_ago = int((datetime.now() - timedelta(hours=6)).timestamp())
-    conv = db['langgraph_v2_threads'].find_one({ 
-      'userId': user_id,
-      'v2State': {'$in': ["ACTIVE_TRACKING", "ONBOARDING"]},
-      'updatedAt': {'$lte': six_hours_ago},
-    })
-    return conv
 
-def get_pending_conversation_by_user_id(db, user_id):
-    six_hours_ago = int((datetime.now() - timedelta(hours=6)).timestamp())
-    conv = db['conversations'].find_one({ 
-      'userId': ObjectId(user_id),
-      'updatedAt': {'$lte': six_hours_ago},
-    })
-    return conv
-
+def is_push_true_for_last_10_messages(conv):
+    messages = conv.get('messages', [])
+    if len(messages) < 10:
+        return False
+    for m in messages[-10:]:
+        if m.get('type') != 'ai' or m.get('data', {}).get('additional_kwargs', {}).get('push_prop', False) == False:
+            return False
+    return True
 
 def sanitize_conv(conv):
     meaningful_messages = []
@@ -153,10 +146,8 @@ def number_or_none(value):
         return None
 
 RADIUS_DEG = 1 / 69
-def prematch_by_search_criteria(user, listings):
-    sc = user.get('v2LongTermMemory')
-    if not sc:
-        sc = user.get('userPreferences', {}).get('propertySearchCriteria', {})
+def prematch_by_search_criteria(conv, listings):
+    sc = conv.get('userPreferences', {})
     if not sc:
         return []
     sc_district = sc.get('districts')
@@ -182,9 +173,9 @@ def prematch_by_search_criteria(user, listings):
     min_building_age = number_or_none(sc.get('minBuildingAge'))
     max_building_age = number_or_none(sc.get('maxBuildingAge'))
 
-    with_car_park = sc.get('haveCar', sc.get('withCarPark', False))
-    is_village_house = sc.get('likeVillageHouse', sc.get('isVillageHouse', False))
-    allow_pets = sc.get('havePets', sc.get('allowPets', False))
+    with_car_park = sc.get('haveCar', False)
+    is_village_house = sc.get('likeVillageHouse', False)
+    allow_pets = sc.get('havePets', False)
 
     def matches(prop):
         extracted = prop.get('v1_extracted_data', {})
@@ -249,8 +240,7 @@ def prematch_by_search_criteria(user, listings):
     return [prop for prop in listings if matches(prop)]
 
 
-def create_match_prompt(conv, user, listings):
-    sc = user.get('propertySearchCriteria', {})
+def create_match_prompt(conv, listings):
     return [
         {'role': 'system', 'content': create_system_prompt()},
         {
@@ -262,26 +252,12 @@ def create_match_prompt(conv, user, listings):
         },
     ]
 
-
-def batch_subscribers(db):
-    skip = 0
-    while True:
-        users = list(
-            db['users']
-            .find({
-                #'_id': ObjectId('6a4f4301336fe9d9fe9539ee'),
-                'identifiers': { '$elemMatch': {'type': 'phone'} },
-                'userPreferences.disableNotifications': { '$ne': True },
-                'v2State': { '$nin': ['MUTED', 'OFFBOARDED'] },
-            })
-            .skip(skip)
-            .limit(user_batch_size)
-        )
-        if not users:
-            break
-        yield users
-        skip += user_batch_size
-
+def active_conversation(db):
+    query = {
+        # 'threadId': '+85269098658',
+        'state': {'$in': ["ACTIVE_TRACKING"]},
+    }
+    return db['conversations-v2'].find(query)
 
 def move_file(src, dst):
     try:
@@ -316,34 +292,29 @@ def main():
 
     processed_count = 0
     with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
-        for user_batch in batch_subscribers(db):
-            for user in user_batch:
-                user_id = str(user.get('_id'))
-                conv = get_langgraph_v2_threads_by_user_id(db, user_id)
-                if not conv:
-                    conv = get_pending_conversation_by_user_id(db, user_id)
-                if not conv:
-                    print(f"No pending conversation found for user {user_id}, skipping.")
-                    continue
-                filtered_listings = prematch_by_search_criteria(user, sorted_listings)
-                if not filtered_listings:
-                    print(f"No listings match search criteria for user {user_id}, skipping.")
-                    continue
-                print(f"Creating match prompt for user {user_id} with {len(filtered_listings)} candidate listings.: {[p['source_id'] for p in filtered_listings[:6]]}")
-                messages = create_match_prompt(conv, user, [sanitize_prop(p) for p in filtered_listings[:6]])
-                row = {
-                    'custom_id': f'match-{user_id}',
-                    'method': 'POST',
-                    'url': '/chat/completions',
-                    'body': {
-                        'model': 'gpt-4.1-nano',
-                        'messages': messages,
-                        'max_tokens': 500,
-                        'response_format': {'type': 'json_object'},
-                    },
-                }
-                batch_file.write(f"{json.dumps(row, ensure_ascii=False)}\n")
-                processed_count += 1
+        for conv in active_conversation(db):
+            if is_push_true_for_last_10_messages(conv):
+                print(f"Conversation {conv['_id']} has push=True for last 10 messages, skipping.")
+                continue
+            filtered_listings = prematch_by_search_criteria(conv, sorted_listings)
+            if not filtered_listings:
+                print(f"No listings match search criteria for conversation {conv['_id']}, skipping.")
+                continue
+            print(f"Creating match prompt for conversation {conv['_id']} with {len(filtered_listings)} candidate listings.: {[p['source_id'] for p in filtered_listings[:6]]}")
+            messages = create_match_prompt(conv, [sanitize_prop(p) for p in filtered_listings[:6]])
+            row = {
+                'custom_id': f'match-{conv['_id']}',
+                'method': 'POST',
+                'url': '/chat/completions',
+                'body': {
+                    'model': 'gpt-4.1-nano',
+                    'messages': messages,
+                    'max_tokens': 500,
+                    'response_format': {'type': 'json_object'},
+                },
+            }
+            batch_file.write(f"{json.dumps(row, ensure_ascii=False)}\n")
+            processed_count += 1
 
     if processed_count == 0:
         print("No subscribers with phone numbers found.")
