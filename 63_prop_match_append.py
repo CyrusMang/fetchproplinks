@@ -163,7 +163,6 @@ def main():
                 {'_id': conv_oid},
                 {
                     '$push': {'push_properties': {'$each': push_items}},
-                    '$set': {'updatedAt': int(datetime.now().timestamp())},
                 },
             )
 
