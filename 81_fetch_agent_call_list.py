@@ -37,6 +37,24 @@ def clean_text(value: str | None) -> str:
 	return (value or "").strip()
 
 
+def normalize_hk_phone(value: str) -> str:
+	phone = clean_text(value)
+	phone = phone.replace("tel:", "")
+	phone = phone.replace("+852", "")
+	phone = phone.replace("852-", "")
+	phone = phone.replace("-", "")
+	phone = phone.replace(" ", "")
+	return phone
+
+
+def is_hk_mobile_phone(value: str) -> bool:
+	phone = normalize_hk_phone(value)
+	if len(phone) != 8 or not phone.isdigit():
+		return False
+	# HK mobile numbers typically begin with 5, 6, 7, 8, or 9.
+	return phone[0] in {"5", "6", "7", "8", "9"}
+
+
 def parse_agents_from_company_html(html: str) -> list[dict[str, str]]:
 	soup = BeautifulSoup(html, "html.parser")
 	result: list[dict[str, str]] = []
@@ -63,9 +81,12 @@ def parse_agents_from_company_html(html: str) -> list[dict[str, str]]:
 			if "E-" in label or "S-" in label:
 				linence_no = label.strip()
 			elif span.find("a", href=lambda x: x and x.startswith("tel:")):
-				tel_link = span.select_one('a[href^="tel:"]')
-				if tel_link:
-					contact_phone = clean_text(tel_link.get_text())
+				tel_links = span.select('a[href^="tel:"]')
+				for tel_link in tel_links:
+					raw_phone = clean_text(tel_link.get_text())
+					if is_hk_mobile_phone(raw_phone):
+						contact_phone = raw_phone
+						break
 			if linence_no and contact_phone:
 				break
 
