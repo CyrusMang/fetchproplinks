@@ -95,7 +95,7 @@ def parse_agents_from_company_html(html: str) -> list[dict[str, str]]:
 
 		result.append(
 			{
-				"title": name,
+				"name": name,
 				"licenseNumber": linence_no,
 				"contactNumber": contact_phone,
 			}

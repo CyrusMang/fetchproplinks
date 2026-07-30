@@ -72,7 +72,7 @@ Return JSON with this schema:
     "brightness_comment": "string|null",
   },
   "recommended_for": ["string", "..."],
-  "confidence_score": number
+  "confidence_score": number (0-100)
 }
 """.strip()
 
