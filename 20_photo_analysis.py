@@ -29,20 +29,17 @@ def gen_batch_code():
     return str(uuid.uuid4())
 
 def create_photo_analysis_prompt(photo_url):
-    """Create prompt for GPT-4o mini to analyze property photos with low detail mode."""
-    system_content = """You are a property photo analysis expert. Analyze the provided property photo and return a JSON object containing details.
+    """Create a compact prompt for GPT-4o mini photo analysis."""
+    system_content = """Analyze one property photo and return only valid JSON.
 
-For each photo, extract:
-- image_description: Detailed description of what's shown in the photo
-- is_photo_of_property: Boolean indicating if the photo is relevant to the property (not a random image or unrelated content)
-- is_indoor: Boolean indicating if the photo is taken indoors
-- is_human_in_photo: Boolean indicating if there are people visible
-- is_violating_policy: Boolean indicating if image contains inappropriate content (adult content, nudity, violence)
-- quality_score: Number 0-100 indicating photo and property's quality (clarity, lighting, composition, cleanliness, newness, maintenance, appeal)
-- room_type: String identifying the room type (e.g., "living_room", "bedroom", "kitchen", "bathroom", "exterior", "view")
-
-Return ONLY valid JSON in this format"""
-# - detected_objects: Array of specific objects/furniture found in the image
+Return these fields:
+- image_description: short but specific description
+- is_photo_of_property: true if the image is part of the listing
+- is_indoor: true if taken indoors
+- is_human_in_photo: true if people are visible
+- is_violating_policy: true if inappropriate content is present
+- quality_score: 0-100 score for clarity and property appeal
+- room_type: one of living_room, bedroom, kitchen, bathroom, exterior, view, other"""
     
     # Build content array with text and images using low detail mode
     user_content = [
@@ -84,6 +81,13 @@ def main():
 
     estate_building_place_map = {}
 
+    def target_photo_count(candidate_count):
+        if candidate_count <= 1:
+            return candidate_count
+        if candidate_count <= 3:
+            return 2
+        return 1
+
     with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
         for prop in props:
             links = prop.get('image_links', [])
@@ -91,8 +95,10 @@ def main():
             for l in photo_urls:
                 if l not in links:
                     links.append(l)
+            links = list(dict.fromkeys(links))
+            photo_limit = target_photo_count(len(links))
             prop_photo_count = 0
-            for link in links[:max_photos_per_property]:
+            for link in links[:photo_limit]:
                 extracted_data = prop.get('v1_extracted_data', {})
                 
                 existing_photo = photo_collection.find_one({ 'prop_source_id': prop.get('source_id'), 'photo_url': link })
@@ -115,7 +121,7 @@ def main():
                     "body": {
                         "model": "gpt-4o-mini-batch",
                         "messages": messages,
-                        "max_tokens": 4000,
+                        "max_tokens": 300,
                         "temperature": 0.3,
                         "response_format": { "type": "json_object" }
                     }

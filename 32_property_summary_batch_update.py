@@ -120,6 +120,10 @@ def main():
 
                 content = choices[0].get("message", {}).get("content", "{}")
                 summary_json = json.loads(content)
+                if "headline" not in summary_json and summary_json.get("headline_en"):
+                    summary_json["headline"] = summary_json["headline_en"]
+                if "executive_summary" not in summary_json and summary_json.get("executive_summary_en"):
+                    summary_json["executive_summary"] = summary_json["executive_summary_en"]
 
                 prop_collection.update_one(
                     {"source_id": source_id},

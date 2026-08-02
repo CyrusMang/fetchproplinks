@@ -3,6 +3,7 @@ import uuid
 import json
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -21,17 +22,34 @@ os.makedirs(os.path.join(folder, 'data'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'backup'), exist_ok=True)
 
 batch_size = 100
+HTML_MAX_CHARS = int(os.getenv("EXTRACT_HTML_MAX_CHARS", "12000"))
+
+
+def trim_html_for_llm(body, max_chars=HTML_MAX_CHARS):
+    if not body:
+        return body
+
+    soup = BeautifulSoup(body, "lxml")
+    for tag_name in ["script", "style", "noscript", "svg", "iframe", "aside", "footer", "header", "nav", "form"]:
+        for tag in soup.find_all(tag_name):
+            tag.decompose()
+
+    for selector in ["main", "article", '[role="main"]', '#pc-services-detail', '.content_body', 'body']:
+        node = soup.select_one(selector)
+        if node:
+            trimmed = str(node)
+            return trimmed[:max_chars]
+
+    return str(soup)[:max_chars]
 
 def system_prompt(body):
     return f"""
-Answer the questions based on following context only.
+Extract structured property data from the HTML below.
+Use only evidence in the HTML. If unsure, use null or an empty array.
 
-Context: 
-HTML body of a property details page.
+HTML:
 {body}
-
-Questions: 
-Extract the useful information about the property into the following JSON format:
+Return only valid JSON in this format:
 {{
     "title": "string",
     "description": "string",
@@ -72,7 +90,7 @@ def gen_batch_code():
 def create_prompt(body):
     return [{
         "role": "system", 
-        "content": system_prompt(body)
+        "content": system_prompt(trim_html_for_llm(body))
     }]
 
 def main():
@@ -111,7 +129,7 @@ def main():
                 "body": {
                     "model": "gpt-4.1-nano",
                     "messages": prompt,
-                    "max_tokens": 4000,
+                    "max_tokens": 1200,
                     "response_format": { "type": "json_object" }
                 }
             }

@@ -16,7 +16,7 @@ OPENAI_API_VERSION = os.getenv("OPENAI_API_VERSION")
 ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 
 batch_size = 100
-max_photos_per_property = 3
+max_photos_per_property = 2
 
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
@@ -35,26 +35,21 @@ def create_system_prompt():
 	return """
 You are a senior Hong Kong property analyst.
 
-Your task is to produce one complete property summary based only on:
-1) structured listing data, and
-2) analyzed photo observations.
+Produce one concise property summary in English only, based only on structured listing data and photo observations.
+Do not translate.
 
 Rules:
 - Use only evidence in the input. Do not invent facts.
-- If information is missing, write null or an empty array where applicable.
-- Keep writing clear and practical for home seekers.
+- If information is missing, use null or an empty array.
+- Keep the writing concise and practical for home seekers.
 - Mention both strengths and potential concerns.
-- Include photo-based evidence in the narrative.
+- Use photo evidence in the narrative.
 - Output only valid JSON.
 
 Return JSON with this schema:
 {
   "headline_en": "string",
-	"headline_zh_hk": "string",
-	"headline_zh_cn": "string",
 	"executive_summary_en": "string",
-	"executive_summary_zh_hk": "string",
-	"executive_summary_zh_cn": "string",
   "key_highlights": ["string", "..."],
   "possible_concerns": ["string", "..."],
   "price_analysis": {
@@ -110,6 +105,15 @@ def sanitize_photo_data(photo):
 		"detected_objects": photo.get("detected_objects", []),
 		"quality_score": photo.get("quality_score"),
 		"is_indoor": photo.get("is_indoor"),
+	}
+
+
+def compact_photo_payload(photo):
+	return {
+		"room": photo.get("room_type"),
+		"desc": photo.get("image_description"),
+		"q": photo.get("quality_score"),
+		"indoor": photo.get("is_indoor"),
 	}
 
 
@@ -200,7 +204,7 @@ def main():
 				continue
 
 			prop_payload = sanitize_prop_data(prop)
-			photo_payloads = [sanitize_photo_data(p) for p in photo_docs]
+			photo_payloads = [compact_photo_payload(sanitize_photo_data(p)) for p in photo_docs]
 			messages = create_summary_prompt(prop_payload, photo_payloads)
 
 			row = {
@@ -211,7 +215,7 @@ def main():
 					"model": "gpt-4o-mini-batch",
 					"messages": messages,
 					"temperature": 0.3,
-					"max_tokens": 4000,
+					"max_tokens": 1200,
 					"response_format": {"type": "json_object"},
 				},
 			}
