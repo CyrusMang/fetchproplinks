@@ -131,12 +131,12 @@ def main() -> None:
 	agent_collection = db["profiles"]
 
 	# Keep licenseNumber as the canonical uniqueness key as requested.
-	try:
-		agent_collection.drop_index("licenseNumber_1_companyId_1_title_1")
-	except Exception:
-		pass
+	# try:
+	# 	agent_collection.drop_index("licenseNumber_1_companyId_1_title_1")
+	# except Exception:
+	# 	pass
 
-	agent_collection.create_index("licenseNumber", unique=True)
+	# agent_collection.create_index("licenseNumber", unique=True)
 
 	companies = company_collection.find(
 		{"28hse_link": {"$exists": True, "$ne": ""}},

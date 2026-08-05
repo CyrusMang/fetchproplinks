@@ -13,7 +13,7 @@ class ArchivedMessages:
         if to_index is not None:
             query['toIndex'] = {'$lte': to_index}
 
-        result = list(db['archived-messages'].find(query))
+        result = list(db['archived-messages-v2'].find(query))
         messages = []
         for k, batch in enumerate(result):
             if k == 0 and from_index is not None:
@@ -38,5 +38,5 @@ class ArchivedMessages:
             'createdAt': int(time.time()),
         }
         kwargs = {'session': session} if session is not None else {}
-        doc = db['archived-messages'].insert_one(data, **kwargs)
+        doc = db['archived-messages-v2'].insert_one(data, **kwargs)
         return ArchivedMessages({'_id': doc.inserted_id, **data})
