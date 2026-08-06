@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from datetime import datetime
 from bson import ObjectId
 from openai import AzureOpenAI
@@ -145,6 +146,8 @@ def main():
             matched_props = [p for p in matched_props if p]  # Filter out None
 
             push_items = []
+            now_ts = int(time.time())
+            expired_at = now_ts + (2 * 24 * 60 * 60)
             for prop in matched_props[:1]:  # Only take the first matched property
                 property_id = prop.get('id') or prop.get('source_id') or str(prop.get('_id') or '')
                 if not property_id:
@@ -152,6 +155,8 @@ def main():
                 push_items.append({
                     'property_id': property_id,
                     'status': 'pending',
+                    'createdAt': now_ts,
+                    'expired_at': expired_at,
                 })
 
             if not push_items:

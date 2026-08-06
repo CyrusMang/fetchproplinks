@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from datetime import datetime
 
 from bson import ObjectId
@@ -57,6 +58,9 @@ def queue_post_for_conversation(db, conv_oid, post_id):
     if has_existing_post_item(conv, post_id):
         return False, "already_queued"
 
+    now_ts = int(time.time())
+    expired_at = now_ts + (2 * 24 * 60 * 60)
+
     update_result = db["conversations-v2"].update_one(
         {"_id": conv_oid, "push_posts.post_id": {"$ne": post_id}},
         {
@@ -64,7 +68,8 @@ def queue_post_for_conversation(db, conv_oid, post_id):
                 "push_posts": {
                     "post_id": post_id,
                     "status": "pending",
-                    "createdAt": int(datetime.now().timestamp()),
+                    "createdAt": now_ts,
+                    "expired_at": expired_at,
                 }
             }
         },

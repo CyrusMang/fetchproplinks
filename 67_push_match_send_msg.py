@@ -305,6 +305,7 @@ def enrich_post_with_estate(db, post):
 def get_active_convs_with_pending_queue(db):
     three_hours_ago = int((datetime.now() - timedelta(hours=3)).timestamp())
     query = {
+        #'threadId': '+85269098658',
         "state": {"$in": ["ACTIVE_TRACKING"]},
         "updatedAt": {"$lte": three_hours_ago},
         "$or": [
@@ -444,6 +445,67 @@ def mark_property_queue_item_skipped(db, conv, property_id):
     return result.modified_count > 0
 
 
+def mark_post_queue_item_expired(db, conv, post_id):
+    result = db["conversations-v2"].update_one(
+        {
+            "_id": conv.get("_id"),
+            "push_posts": {
+                "$elemMatch": {
+                    "post_id": post_id,
+                    "status": "pending",
+                }
+            },
+        },
+        {
+            "$set": {
+                "push_posts.$.status": "expired",
+                "updatedAt": int(datetime.now().timestamp()),
+            },
+        },
+    )
+    return result.modified_count > 0
+
+
+def mark_property_queue_item_expired(db, conv, property_id):
+    result = db["conversations-v2"].update_one(
+        {
+            "_id": conv.get("_id"),
+            "push_properties": {
+                "$elemMatch": {
+                    "property_id": property_id,
+                    "status": "pending",
+                }
+            },
+        },
+        {
+            "$set": {
+                "push_properties.$.status": "expired",
+                "updatedAt": int(datetime.now().timestamp()),
+            },
+        },
+    )
+    return result.modified_count > 0
+
+
+def queue_item_is_expired(item, now_ts):
+    if not item:
+        return False
+    expired_at = item.get("expired_at")
+    if expired_at is None:
+        created_at = item.get("createdAt")
+        if created_at is None:
+            return False
+        try:
+            expired_at = int(created_at) + (2 * 24 * 60 * 60)
+        except Exception:
+            return False
+
+    try:
+        return int(expired_at) <= int(now_ts)
+    except Exception:
+        return False
+
+
 def is_active_post(post):
     return post.get("status") == "published"
 
@@ -489,8 +551,32 @@ def main():
             skipped += 1
             continue
 
-        queue_type, pending_item = first_pending_item_with_priority(conv)
-        if not pending_item or not queue_type:
+        now_ts = int(time.time())
+
+        pending_post_item = first_pending_post_item(conv)
+        pending_prop_item = first_pending_prop_item(conv)
+
+        if pending_post_item and queue_item_is_expired(pending_post_item, now_ts):
+            queued_post_id = str(pending_post_item.get("post_id"))
+            mark_post_queue_item_expired(db, conv, queued_post_id)
+            skipped += 1
+            print(f"Post queue expired for conversation {conv.get('_id')}, post_id={queued_post_id}")
+            pending_post_item = None
+
+        if pending_prop_item and queue_item_is_expired(pending_prop_item, now_ts):
+            queued_property_id = str(pending_prop_item.get("property_id"))
+            mark_property_queue_item_expired(db, conv, queued_property_id)
+            skipped += 1
+            print(f"Property queue expired for conversation {conv.get('_id')}, property_id={queued_property_id}")
+            pending_prop_item = None
+
+        if pending_post_item:
+            queue_type = "post"
+            pending_item = pending_post_item
+        elif pending_prop_item:
+            queue_type = "property"
+            pending_item = pending_prop_item
+        else:
             skipped += 1
             continue
 

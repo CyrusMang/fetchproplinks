@@ -41,7 +41,7 @@ def get_yesterday_posts(db):
 	start_ts, end_ts = get_yesterday_timestamps()
 	f = {
 		"status": "published",
-		# "createdAt": {"$gte": start_ts, "$lt": end_ts},
+		"createdAt": {"$gte": start_ts, "$lt": end_ts},
 		"estate_building_id": {"$exists": True, "$ne": None},
 	}
 	print(f"Querying posts with filter: {f}")
@@ -68,6 +68,7 @@ def is_push_true_for_last_10_messages(conv):
 
 def active_conversation(db):
 	query = {
+    #'threadId': '+85269098658',
 		"state": {"$in": ["ACTIVE_TRACKING"]},
 	}
 	return db["conversations-v2"].find(query)
