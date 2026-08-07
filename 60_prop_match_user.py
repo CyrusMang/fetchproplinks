@@ -141,6 +141,12 @@ def number_or_none(value):
     try:
         if value is None:
             return None
+        if isinstance(value, str):
+            cleaned = value.strip().lower()
+            if cleaned == '':
+                return None
+            cleaned = cleaned.replace(',', '').replace('$', '').replace('hkd', '')
+            return int(float(cleaned))
         return int(value)
     except (ValueError, TypeError):
         return None
@@ -204,27 +210,30 @@ def prematch_by_search_criteria(conv, listings):
                 return False
         bedrooms = number_or_none(extracted.get('number_of_bedrooms'))
         if bedrooms is not None:
-            if min_bedrooms and bedrooms <= min_bedrooms:
+            if min_bedrooms is not None and bedrooms <= min_bedrooms:
                 return False
-            if max_bedrooms and bedrooms >= max_bedrooms + 1:
+            if max_bedrooms is not None and bedrooms >= max_bedrooms + 1:
                 return False
-        price = number_or_none(extracted.get('rent_price'))
-        if price is not None:
-            if min_price and price < (min_price * 0.8):
-                return False
-            if max_price and price > (max_price * 1.1):
-                return False
+        raw_rent_price = extracted.get('rent_price')
+        price = number_or_none(raw_rent_price)
+        # If rent_price exists but cannot be parsed, fail closed when price filters are present.
+        if price is None:
+            return False
+        if min_price is not None and price < (min_price * 0.8):
+            return False
+        if max_price is not None and price > (max_price * 1.1):
+            return False
         size = number_or_none(extracted.get('net_size_sqft'))
         if size is not None:
-            if min_size and size < (min_size * 0.8):
+            if min_size is not None and size < (min_size * 0.8):
                 return False
-            if max_size and size > (max_size * 1.2):
+            if max_size is not None and size > (max_size * 1.2):
                 return False
         building_age = number_or_none(extracted.get('building_age'))
         if building_age is not None:
-            if min_building_age and building_age < min_building_age:
+            if min_building_age is not None and building_age < min_building_age:
                 return False
-            if max_building_age and building_age > max_building_age:
+            if max_building_age is not None and building_age > max_building_age:
                 return False
         if with_car_park:
             if not extracted.get('with_car_park', False):
@@ -303,7 +312,7 @@ def main():
             print(f"Creating match prompt for conversation {conv['_id']} with {len(filtered_listings)} candidate listings.: {[p['source_id'] for p in filtered_listings[:6]]}")
             messages = create_match_prompt(conv, [sanitize_prop(p) for p in filtered_listings[:6]])
             row = {
-                'custom_id': f'match-{conv['_id']}',
+                'custom_id': f"match-{conv['_id']}",
                 'method': 'POST',
                 'url': '/chat/completions',
                 'body': {
