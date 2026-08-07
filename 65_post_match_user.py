@@ -258,11 +258,12 @@ def prematch_by_search_criteria(conv, listings):
 				return False
 
 		price = extract_listing_price(post)
-		if price is not None:
-			if min_price is not None and price < (min_price * 0.8):
-				return False
-			if max_price is not None and price > (max_price * 1.1):
-				return False
+    if price is None:
+      return False
+    if min_price is not None and price < (min_price * 0.8):
+      return False
+    if max_price is not None and price > (max_price * 1.1):
+      return False
 
 		size = extract_listing_size(post)
 		if size is not None:

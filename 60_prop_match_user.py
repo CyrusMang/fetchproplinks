@@ -92,6 +92,9 @@ def sanitize_prop(prop):
     summary = prop.get('v1_summary_data', {})
     return {
         'source_id': prop.get('source_id'),
+        'rent_price': extracted.get('rent_price'),
+        'net_size_sqft': extracted.get('net_size_sqft'),
+        'number_of_bedrooms': extracted.get('number_of_bedrooms'),
         'headline_en': summary.get('headline_en'),
         'executive_summary_en': summary.get('executive_summary_en'),
         'key_highlights': summary.get('key_highlights', []),
