@@ -16,11 +16,41 @@ CHATWOOT_ACCOUNT_ID = os.getenv("CHATWOOT_ACCOUNT_ID")
 CHATWOOT_API_TOKEN = os.getenv("CHATWOOT_API_TOKEN")
 CHATWOOT_INBOX_ID = os.getenv("CHATWOOT_INBOX_ID")
 
+TOKEN_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+DEFAULT_TOKEN_LENGTH = 7
+MAX_INSERT_ATTEMPTS = 20
+
 templates = {
     'zh-cn': ["prop_suggestion", 'UTILITY'],
     'zh-hk': ["prop_suggestion", 'UTILITY'],
     'en': ["prop_suggestion", 'UTILITY'],
 }
+
+def random_token(length: int) -> str:
+    return "".join(random.choice(TOKEN_ALPHABET) for _ in range(length))
+
+def insert_token_doc(
+    collection: Collection,
+    conversation_object_id: ObjectId,
+    property_id: str,
+    token_length: int,
+) -> str:
+    for _ in range(MAX_INSERT_ATTEMPTS):
+        token = random_token(token_length)
+        try:
+            collection.insert_one(
+                {
+                    "token": token,
+                    "conversationId": conversation_object_id,
+                    "propertyId": property_id,
+                    "clickCount": 0,
+                    "createdAt": int(time.time()),
+                }
+            )
+            return token
+        except DuplicateKeyError:
+            continue
+    raise RuntimeError(f"Failed to generate unique token for propertyId={property_id}")
 
 
 def normalize_lang(lang):
@@ -236,22 +266,31 @@ def main():
             failed += 1
             continue
 
-        prop_id = prop.get('id')
+        prop_id = prop.get('short_id') or prop.get('id')
         if not prop_id:
             print(f"Property missing id for user {user.get('_id')}, property_id={property_id}")
             failed += 1
             continue
 
         caption = build_caption(prop, lang)
-        link = f"https://homeable.house/{lang}/{prop_id}"
+
+        collection = db["property_link_tokens"]
+        token = insert_token_doc(
+            collection=collection,
+            conversation_object_id=conv.get('_id'),
+            property_id=prop_id,
+            token_length=5,
+        )
+
+        site_url = f"https://homeable.house/r/{token}"
+
         template_params = {
             'caption': caption,
-            'link': link,
+            'link': site_url,
         }
-        rendered_message = rendered_message_text(f"{caption}\n{link}", lang)
+        rendered_message = rendered_message_text(f"{caption}\n{site_url}", lang)
 
         result = conv_save_push(db, conv, rendered_message, property_id)
-
         if not result:
             print(f"Failed to save push message for user {user.get('_id')}, property_id={property_id}")
             failed += 1

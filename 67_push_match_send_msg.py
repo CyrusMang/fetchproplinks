@@ -1,6 +1,7 @@
 import os
 import time
 import uuid
+import random
 from datetime import datetime, timedelta
 
 from bson import ObjectId
@@ -28,6 +29,7 @@ PROP_TEMPLATE_NAME = os.getenv("PROP_TEMPLATE_NAME", "prop_suggestion")
 PROP_TEMPLATE_CATEGORY = os.getenv("PROP_TEMPLATE_CATEGORY", "UTILITY")
 PROP_WEB_BASE_URL = os.getenv("PROP_WEB_BASE_URL", "https://homeable.house")
 PROP_WEB_PATH_TEMPLATE = os.getenv("PROP_WEB_PATH_TEMPLATE", "/{lang}/{prop_id}")
+PROP_WEB_PATH_TOKEN_TEMPLATE = os.getenv("PROP_WEB_PATH_TOKEN_TEMPLATE", "/r/{token}")
 
 TEMPLATES = {
     "zh-cn": [POST_TEMPLATE_NAME, POST_TEMPLATE_CATEGORY],
@@ -41,6 +43,35 @@ PROP_TEMPLATES = {
     "en": [PROP_TEMPLATE_NAME, PROP_TEMPLATE_CATEGORY],
 }
 
+TOKEN_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+DEFAULT_TOKEN_LENGTH = 7
+MAX_INSERT_ATTEMPTS = 20
+
+def random_token(length):
+    return "".join(random.choice(TOKEN_ALPHABET) for _ in range(length))
+
+def insert_token_doc(
+    collection,
+    conversation_object_id,
+    property_id,
+    token_length,
+):
+    for _ in range(MAX_INSERT_ATTEMPTS):
+        token = random_token(token_length)
+        try:
+            collection.insert_one(
+                {
+                    "token": token,
+                    "conversationId": conversation_object_id,
+                    "propertyId": property_id,
+                    "clickCount": 0,
+                    "createdAt": int(time.time()),
+                }
+            )
+            return token
+        except DuplicateKeyError:
+            continue
+    raise RuntimeError(f"Failed to generate unique token for propertyId={property_id}")
 
 def normalize_lang(lang):
     if not lang:
@@ -216,9 +247,16 @@ def build_post_link(lang, post_id):
     return f"{base}{path}"
 
 
-def build_prop_link(lang, prop_id):
+def build_prop_link(db, conv, lang, prop_id):
+    collection = db["property_link_tokens"]
+    token = insert_token_doc(
+        collection=collection,
+        conversation_object_id=conv.get('_id'),
+        property_id=prop_id,
+        token_length=5,
+    )
     base = PROP_WEB_BASE_URL.rstrip("/")
-    path = PROP_WEB_PATH_TEMPLATE.format(lang=lang, prop_id=prop_id)
+    path = PROP_WEB_PATH_TOKEN_TEMPLATE.format(token=token)
     if not path.startswith("/"):
         path = f"/{path}"
     return f"{base}{path}"
@@ -671,7 +709,7 @@ def main():
 
         prop_template_name, prop_template_category = PROP_TEMPLATES.get(lang, PROP_TEMPLATES["zh-hk"])
         prop_caption = build_prop_caption(prop, lang)
-        prop_link = build_prop_link(lang, canonical_prop_id)
+        prop_link = build_prop_link(db, conv, lang, canonical_prop_id)
         prop_template_params = {
             "caption": prop_caption,
             "link": prop_link,
