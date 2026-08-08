@@ -663,7 +663,7 @@ def main():
             )
             continue
 
-        canonical_prop_id = prop.get("id") or prop.get("source_id") or str(prop.get("_id") or "")
+        canonical_prop_id = prop.get("short_id") or prop.get("id")
         if not canonical_prop_id:
             print(f"Property missing usable id for user {user.get('_id')}, property_id={queued_property_id}")
             failed += 1

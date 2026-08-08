@@ -232,9 +232,8 @@ def _upsert_prop(db, meta):
         print(f"Updated prop {source_id}")
     else:
         create_meta = {**meta}
-        create_meta['created_at'] = datetime.datetime.now().timestamp()
         create_meta['status'] = "pending_extraction"
-        Prop.create(db, {**create_meta, "id": str(uuid.uuid4())})
+        Prop.create(db, create_meta)
         print(f"Created prop {source_id}")
 
 
@@ -480,10 +479,9 @@ def extract_details(db, driver, link):
         prop.update(meta)
         print(f"Updated prop {source_id}")
     else:
-        meta['created_at'] = datetime.datetime.now().timestamp()
         meta['source_html_content'] = content_body_div.get_attribute('outerHTML')
         meta['status'] = "pending_extraction"
-        prop = Prop.create(db, {**meta, "id": str(uuid.uuid4())})
+        prop = Prop.create(db, meta)
         print(f"Created prop {source_id}")
     
     # prop.download_photos()
