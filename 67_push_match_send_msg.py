@@ -263,14 +263,26 @@ def build_prop_link(db, conv, lang, prop_id):
 
 
 def first_pending_post_item(conv):
-    for item in conv.get("push_posts", []):
+    items = conv.get("push_posts")
+    if not isinstance(items, list):
+        return None
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
         if item.get("status") == "pending" and item.get("post_id"):
             return item
     return None
 
 
 def first_pending_prop_item(conv):
-    for item in conv.get("push_properties", []):
+    items = conv.get("push_properties")
+    if not isinstance(items, list):
+        return None
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
         if item.get("status") == "pending" and item.get("property_id"):
             return item
     return None

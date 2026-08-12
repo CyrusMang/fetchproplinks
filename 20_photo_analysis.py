@@ -90,8 +90,18 @@ def main():
 
     with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
         for prop in props:
-            links = prop.get('image_links', [])
-            photo_urls = prop.get('v1_extracted_data', {}).get('photo_urls', [])
+            links = prop.get('image_links')
+            if not isinstance(links, list):
+                links = []
+
+            extracted_data = prop.get('v1_extracted_data')
+            if not isinstance(extracted_data, dict):
+                extracted_data = {}
+
+            photo_urls = extracted_data.get('photo_urls')
+            if not isinstance(photo_urls, list):
+                photo_urls = []
+
             for l in photo_urls:
                 if l not in links:
                     links.append(l)
@@ -99,8 +109,6 @@ def main():
             photo_limit = target_photo_count(len(links))
             prop_photo_count = 0
             for link in links[:photo_limit]:
-                extracted_data = prop.get('v1_extracted_data', {})
-                
                 existing_photo = photo_collection.find_one({ 'prop_source_id': prop.get('source_id'), 'photo_url': link })
                 if existing_photo:
                     print(f"Photo already exists in collection, skipping: {link}")
@@ -163,6 +171,13 @@ def main():
                     { '$set': { 'status': 'photo_analysed' } }
                 )
                 print(f"No photos to batch for {prop.get('source_id')}, marked as photo_analysed.")
+
+    if processed_count == 0:
+        if os.path.exists(batch_file_path):
+            os.remove(batch_file_path)
+        print("No new photos to analyze. Empty batch file removed.")
+        client.close()
+        return
     
     print(f"\nBatch file created: {batch_file_path}")
     print(f"Processed {processed_count} photos for analysis.")

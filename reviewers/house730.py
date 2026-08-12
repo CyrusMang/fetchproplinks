@@ -3,7 +3,7 @@ from datetime import datetime
 from selenium.webdriver.common.by import By
 from models.prop import Prop
 
-sign_message = '樓盤已過期'
+sign_message = ['樓盤已過期', '此樓盤已被隱藏']
 
 def review(db, driver, prop):
     try:
@@ -24,7 +24,7 @@ def review(db, driver, prop):
 
         try:
             content_body_div = driver.find_element(By.ID, 'pc-services-detail')
-            if sign_message in content_body_div.get_attribute('outerHTML'):
+            if any(msg in content_body_div.get_attribute('outerHTML') for msg in sign_message):
                 still_accessible = False
         except:
             still_accessible = False

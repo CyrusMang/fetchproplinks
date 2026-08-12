@@ -101,6 +101,7 @@ def main():
     f = {
         'status': "pending_extraction",
         'type': "apartment",
+        'post_type': "rent",
         'v1_data_extracting_code': { '$exists': False },
     }
 

@@ -29,6 +29,21 @@ def remove_file(file_path):
     except Exception as e:
         print(f"Error removing file {file_path}: {e}")
 
+
+def has_batch_requests(file_path):
+    # Batch JSONL must contain at least one non-empty line.
+    try:
+        if os.path.getsize(file_path) == 0:
+            return False
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    return True
+        return False
+    except Exception as e:
+        print(f"Error validating file {file_path}: {e}")
+        return False
+
 def main():
     client = AzureOpenAI(
         azure_endpoint = OPENAI_API_ENDPOINT, 
@@ -43,6 +58,11 @@ def main():
     
     for file_path in files:
         print(f"Processing file: {file_path}")
+
+        if not has_batch_requests(file_path):
+            print(f"Skip empty batch file: {file_path}")
+            remove_file(file_path)
+            continue
         
         # Upload file to Azure OpenAI
         file = client.files.create(
