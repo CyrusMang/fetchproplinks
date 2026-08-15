@@ -2,6 +2,8 @@ import argparse
 import os
 import time
 import uuid
+import atexit
+import fcntl
 from datetime import datetime
 
 import requests
@@ -14,6 +16,12 @@ from pymongo import MongoClient
 load_dotenv()
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
+ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER", "artifacts")
+LOCK_FILE_PATH = os.path.join(
+  os.path.dirname(os.path.abspath(__file__)),
+  ARTIFACTS_FOLDER,
+  '.15_map_estate_or_building.lock',
+)
 
 allow_types = [
   "apartment_building",
@@ -26,6 +34,19 @@ allow_types = [
   "establishment",
   "point_of_interest",
 ]
+
+
+def acquire_lock(lock_file_path):
+  os.makedirs(os.path.dirname(lock_file_path), exist_ok=True)
+  lock_file = open(lock_file_path, 'w')
+  try:
+    fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+  except BlockingIOError:
+    lock_file.close()
+    return None
+
+  atexit.register(lock_file.close)
+  return lock_file
 
 
 def normalize_text(value):
@@ -321,6 +342,11 @@ def process_batch(db, batch_size):
 
 
 def main():
+  lock_file = acquire_lock(LOCK_FILE_PATH)
+  if not lock_file:
+    print("Another instance is running, skipping this execution.")
+    return
+
   parser = argparse.ArgumentParser(description='Map property records to estate/building records using Google Places.')
   parser.add_argument('--batch-size', type=int, default=50, help='Number of properties to process per batch.')
   parser.add_argument('--max-batches', type=int, default=20, help='Max number of batches to run. 0 means run until no records remain.')

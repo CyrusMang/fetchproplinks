@@ -1,5 +1,7 @@
 import os
 import json
+import atexit
+import fcntl
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -11,6 +13,19 @@ ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
 folder = os.path.join(artifacts, 'extract_data')
+LOCK_FILE_PATH = os.path.join(folder, '.14_extract_data_batch_update_db.lock')
+
+
+def acquire_lock(lock_file_path):
+    lock_file = open(lock_file_path, 'w')
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_file.close()
+        return None
+
+    atexit.register(lock_file.close)
+    return lock_file
 
 def get_all_files(folder_path):
     files = []
@@ -28,6 +43,11 @@ def move_file(source, destination):
         print(f"Error removing file {source}: {e}")
 
 def main():
+    lock_file = acquire_lock(LOCK_FILE_PATH)
+    if not lock_file:
+        print("Another instance is running, skipping this execution.")
+        return
+
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
     collection = db['props']

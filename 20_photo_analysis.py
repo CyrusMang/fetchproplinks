@@ -2,6 +2,8 @@ from datetime import datetime
 import os
 import uuid
 import json
+import atexit
+import fcntl
 import cloudscraper
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -20,10 +22,23 @@ os.makedirs(os.path.join(folder, 'batch_files'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'upload_batches'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 
-batch_size = 100
+batch_size = int(os.getenv("PHOTO_ANALYSIS_BATCH_SIZE", "200"))
 max_photos_per_property = 3
+LOCK_FILE_PATH = os.path.join(folder, '.20_photo_analysis.lock')
 
 scraper = cloudscraper.create_scraper()
+
+
+def acquire_lock(lock_file_path):
+    lock_file = open(lock_file_path, 'w')
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_file.close()
+        return None
+
+    atexit.register(lock_file.close)
+    return lock_file
 
 def gen_batch_code():
     return str(uuid.uuid4())
@@ -62,6 +77,11 @@ Return these fields:
     ]
 
 def main():
+    lock_file = acquire_lock(LOCK_FILE_PATH)
+    if not lock_file:
+        print("Another instance is running, skipping this execution.")
+        return
+
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
     collection = db['props']

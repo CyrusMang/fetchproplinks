@@ -1,6 +1,8 @@
 import datetime
 import json
 import os
+import atexit
+import fcntl
 
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -17,9 +19,22 @@ ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
 folder = os.path.join(artifacts, "property_summary")
+LOCK_FILE_PATH = os.path.join(folder, ".31_property_summary_batch_track.lock")
 
 os.makedirs(os.path.join(folder, "upload_batches"), exist_ok=True)
 os.makedirs(os.path.join(folder, "results"), exist_ok=True)
+
+
+def acquire_lock(lock_file_path):
+    lock_file = open(lock_file_path, "w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_file.close()
+        return None
+
+    atexit.register(lock_file.close)
+    return lock_file
 
 
 def get_all_files(folder_path):
@@ -40,6 +55,11 @@ def remove_file(file_path):
 
 
 def main():
+    lock_file = acquire_lock(LOCK_FILE_PATH)
+    if not lock_file:
+        print("Another instance is running, skipping this execution.")
+        return
+
     if not OPENAI_API_KEY or not OPENAI_API_ENDPOINT or not OPENAI_API_VERSION:
         print("Missing OpenAI Azure configuration in environment.")
         return

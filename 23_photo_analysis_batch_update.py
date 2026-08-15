@@ -2,6 +2,8 @@ import os
 import json
 import cloudscraper
 import mimetypes
+import atexit
+import fcntl
 from openai import AzureOpenAI
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -18,8 +20,21 @@ ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 dir = os.path.dirname(os.path.abspath(__file__))
 artifacts = os.path.join(dir, ARTIFACTS_FOLDER)
 folder = os.path.join(artifacts, 'photo_analysis')
+LOCK_FILE_PATH = os.path.join(folder, '.23_photo_analysis_batch_update.lock')
 
 scraper = cloudscraper.create_scraper()
+
+
+def acquire_lock(lock_file_path):
+    lock_file = open(lock_file_path, 'w')
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_file.close()
+        return None
+
+    atexit.register(lock_file.close)
+    return lock_file
 
 def get_completed_batches(folder_path):
     """Get all completed batch files."""
@@ -169,6 +184,11 @@ def remove_file(file_path):
         print(f"Error removing file {file_path}: {e}")
 
 def main():
+    lock_file = acquire_lock(LOCK_FILE_PATH)
+    if not lock_file:
+        print("Another instance is running, skipping this execution.")
+        return
+
     # Initialize clients
     openai_client = AzureOpenAI(
         azure_endpoint=OPENAI_API_ENDPOINT,

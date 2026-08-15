@@ -1,6 +1,8 @@
 import os
 import uuid
 import json
+import atexit
+import fcntl
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
@@ -21,8 +23,21 @@ os.makedirs(os.path.join(folder, 'results'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'data'), exist_ok=True)
 os.makedirs(os.path.join(folder, 'backup'), exist_ok=True)
 
-batch_size = 100
+batch_size = int(os.getenv("EXTRACT_DATA_BATCH_SIZE", "200"))
 HTML_MAX_CHARS = int(os.getenv("EXTRACT_HTML_MAX_CHARS", "12000"))
+LOCK_FILE_PATH = os.path.join(folder, '.10_extract_data_batch_create.lock')
+
+
+def acquire_lock(lock_file_path):
+    lock_file = open(lock_file_path, 'w')
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_file.close()
+        return None
+
+    atexit.register(lock_file.close)
+    return lock_file
 
 
 def trim_html_for_llm(body, max_chars=HTML_MAX_CHARS):
@@ -94,6 +109,11 @@ def create_prompt(body):
     }]
 
 def main():
+    lock_file = acquire_lock(LOCK_FILE_PATH)
+    if not lock_file:
+        print("Another instance is running, skipping this execution.")
+        return
+
     client = MongoClient(MONGODB_CONNECTION_STRING)
     db = client['prop_main']
     collection = db['props']

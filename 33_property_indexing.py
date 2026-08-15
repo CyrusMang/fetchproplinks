@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import atexit
+import fcntl
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -9,7 +11,12 @@ from pymongo import MongoClient
 
 load_dotenv()
 
-batch_size = 300
+batch_size = int(os.getenv("PROPERTY_INDEXING_BATCH_SIZE", "600"))
+LOCK_FILE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    os.getenv("ARTIFACTS_FOLDER", "artifacts"),
+    ".33_property_indexing.lock",
+)
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -22,6 +29,19 @@ openai_client = AzureOpenAI(
     api_version=OPENAI_API_VERSION,
 )
 embedding_model = "text-embedding-3-large"
+
+
+def acquire_lock(lock_file_path):
+    os.makedirs(os.path.dirname(lock_file_path), exist_ok=True)
+    lock_file = open(lock_file_path, "w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock_file.close()
+        return None
+
+    atexit.register(lock_file.close)
+    return lock_file
 
 
 def get_embedding(text):
@@ -201,6 +221,11 @@ def extract_indexing_text(prop):
 
 
 def main():
+    lock_file = acquire_lock(LOCK_FILE_PATH)
+    if not lock_file:
+        print("Another instance is running, skipping this execution.")
+        return
+
     if not MONGODB_CONNECTION_STRING:
         print("Missing MONGODB_CONNECTION_STRING in environment.")
         return

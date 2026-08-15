@@ -2,6 +2,8 @@ from datetime import datetime
 import json
 import os
 import uuid
+import atexit
+import fcntl
 
 from openai import AzureOpenAI
 from pymongo import MongoClient
@@ -15,7 +17,7 @@ OPENAI_API_ENDPOINT = os.getenv("OPENAI_API_ENDPOINT")
 OPENAI_API_VERSION = os.getenv("OPENAI_API_VERSION")
 ARTIFACTS_FOLDER = os.getenv("ARTIFACTS_FOLDER")
 
-batch_size = 100
+batch_size = int(os.getenv("PROPERTY_SUMMARY_BATCH_SIZE", "200"))
 max_photos_per_property = 2
 
 dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +27,19 @@ folder = os.path.join(artifacts, "property_summary")
 os.makedirs(os.path.join(folder, "batch_files"), exist_ok=True)
 os.makedirs(os.path.join(folder, "upload_batches"), exist_ok=True)
 os.makedirs(os.path.join(folder, "results"), exist_ok=True)
+LOCK_FILE_PATH = os.path.join(folder, ".30_property_summary_batch_upload.lock")
+
+
+def acquire_lock(lock_file_path):
+	lock_file = open(lock_file_path, "w")
+	try:
+		fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+	except BlockingIOError:
+		lock_file.close()
+		return None
+
+	atexit.register(lock_file.close)
+	return lock_file
 
 
 def gen_batch_code():
@@ -140,6 +155,11 @@ def remove_file(file_path):
 
 
 def main():
+	lock_file = acquire_lock(LOCK_FILE_PATH)
+	if not lock_file:
+		print("Another instance is running, skipping this execution.")
+		return
+
 	if not MONGODB_CONNECTION_STRING:
 		print("Missing MONGODB_CONNECTION_STRING in environment.")
 		return
