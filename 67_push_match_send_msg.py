@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 from dotenv import load_dotenv
 from pymongo import MongoClient
+from pymongo.errors import DuplicateKeyError
 
 import chatwoot_api_helpers
 
@@ -262,42 +263,54 @@ def build_prop_link(db, conv, lang, prop_id):
     return f"{base}{path}"
 
 
-def first_pending_post_item(conv):
+def next_valid_pending_post_item(db, conv, now_ts):
     items = conv.get("push_posts")
+    expired_count = 0
     if not isinstance(items, list):
-        return None
+        return None, expired_count
 
     for item in items:
         if not isinstance(item, dict):
             continue
-        if item.get("status") == "pending" and item.get("post_id"):
-            return item
-    return None
+        if item.get("status") != "pending" or not item.get("post_id"):
+            continue
+
+        if queue_item_is_expired(item, now_ts):
+            queued_post_id = str(item.get("post_id"))
+            mark_post_queue_item_expired(db, conv, queued_post_id)
+            item["status"] = "expired"
+            expired_count += 1
+            print(f"Post queue expired for conversation {conv.get('_id')}, post_id={queued_post_id}")
+            continue
+
+        return item, expired_count
+
+    return None, expired_count
 
 
-def first_pending_prop_item(conv):
+def next_valid_pending_prop_item(db, conv, now_ts):
     items = conv.get("push_properties")
+    expired_count = 0
     if not isinstance(items, list):
-        return None
+        return None, expired_count
 
     for item in items:
         if not isinstance(item, dict):
             continue
-        if item.get("status") == "pending" and item.get("property_id"):
-            return item
-    return None
+        if item.get("status") != "pending" or not item.get("property_id"):
+            continue
 
+        if queue_item_is_expired(item, now_ts):
+            queued_property_id = str(item.get("property_id"))
+            mark_property_queue_item_expired(db, conv, queued_property_id)
+            item["status"] = "expired"
+            expired_count += 1
+            print(f"Property queue expired for conversation {conv.get('_id')}, property_id={queued_property_id}")
+            continue
 
-def first_pending_item_with_priority(conv):
-    pending_post = first_pending_post_item(conv)
-    if pending_post:
-        return "post", pending_post
+        return item, expired_count
 
-    pending_prop = first_pending_prop_item(conv)
-    if pending_prop:
-        return "property", pending_prop
-
-    return None, None
+    return None, expired_count
 
 
 def find_post_by_post_id(db, post_id):
@@ -603,22 +616,9 @@ def main():
 
         now_ts = int(time.time())
 
-        pending_post_item = first_pending_post_item(conv)
-        pending_prop_item = first_pending_prop_item(conv)
-
-        if pending_post_item and queue_item_is_expired(pending_post_item, now_ts):
-            queued_post_id = str(pending_post_item.get("post_id"))
-            mark_post_queue_item_expired(db, conv, queued_post_id)
-            skipped += 1
-            print(f"Post queue expired for conversation {conv.get('_id')}, post_id={queued_post_id}")
-            pending_post_item = None
-
-        if pending_prop_item and queue_item_is_expired(pending_prop_item, now_ts):
-            queued_property_id = str(pending_prop_item.get("property_id"))
-            mark_property_queue_item_expired(db, conv, queued_property_id)
-            skipped += 1
-            print(f"Property queue expired for conversation {conv.get('_id')}, property_id={queued_property_id}")
-            pending_prop_item = None
+        pending_post_item, expired_post_count = next_valid_pending_post_item(db, conv, now_ts)
+        pending_prop_item, expired_prop_count = next_valid_pending_prop_item(db, conv, now_ts)
+        skipped += (expired_post_count + expired_prop_count)
 
         if pending_post_item:
             queue_type = "post"
