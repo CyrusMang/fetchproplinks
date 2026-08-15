@@ -53,6 +53,7 @@ Return these fields:
 - is_indoor: true if taken indoors
 - is_human_in_photo: true if people are visible
 - is_violating_policy: true if inappropriate content is present
+- have_watermark: true if a watermark is present
 - quality_score: 0-100 score for clarity and property appeal
 - room_type: one of living_room, bedroom, kitchen, bathroom, exterior, view, other"""
     
