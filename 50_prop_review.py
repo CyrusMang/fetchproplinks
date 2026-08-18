@@ -46,7 +46,10 @@ def main():
     print(now - 6*3600)
 
     f = {
-        'updated_at': { "$lte": now - 6*3600 },  # 6 hours ago
+        '$or': [
+            { 'reviewed_at': { '$exists': False } },
+            { 'reviewed_at': { "$lte": now - 6*3600 } },
+        ],
         'status': { "$ne": "archived" },
     }
     skip = 0

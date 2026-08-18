@@ -6,6 +6,7 @@ import time
 import re
 import random
 import json
+import hashlib
 from urllib.parse import urlparse
 from pymongo import MongoClient
 import undetected_chromedriver as uc
@@ -224,15 +225,74 @@ def _extract_prop_meta_from_detail_html(link, html):
     }
 
 
+def _pick_28hse_price_from_info(info):
+    if not isinstance(info, dict):
+        return ''
+    for key in ('租金', '售價', '叫價'):
+        value = info.get(key)
+        if value:
+            return str(value).strip()
+    return ''
+
+
+def _normalize_price(value):
+    text = str(value or '').strip()
+    if not text:
+        return ''
+    text = text.replace('HK$', '').replace('$', '').replace(',', '')
+    text = text.replace('港元', '').replace('/月', '').replace('每月', '')
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def _seed_monitor_from_meta(meta):
+    price_raw = _pick_28hse_price_from_info(meta.get('info'))
+    posted_date_raw = str(meta.get('source_posted_date') or '').strip()
+    updated_date_raw = str(meta.get('source_updated_date') or '').strip()
+    price_norm = _normalize_price(price_raw)
+
+    fingerprint_source = '|'.join([
+        str(meta.get('source_id') or '').strip(),
+        'active',
+        price_norm,
+        posted_date_raw,
+        updated_date_raw,
+    ])
+    now = datetime.datetime.now().timestamp()
+
+    return {
+        'price_raw': price_raw,
+        'price_norm': price_norm,
+        'posted_date_raw': posted_date_raw,
+        'posted_date_norm': posted_date_raw,
+        'updated_date_raw': updated_date_raw,
+        'updated_date_norm': updated_date_raw,
+        'status_raw': 'active',
+        'title_raw': str(meta.get('title') or '').strip(),
+        'title_norm': str(meta.get('title') or '').strip(),
+        'confidence': 'high' if price_raw and updated_date_raw else ('medium' if price_raw else 'low'),
+        'fingerprint': hashlib.sha1(fingerprint_source.encode('utf-8')).hexdigest(),
+        'first_checked_at': now,
+        'last_checked_at': now,
+        'seeded_from': 'extract_28hse',
+    }
+
+
 def _upsert_prop(db, meta):
     source_id = meta["source_id"]
     prop = Prop.get_by_id(db, source_id)
     if prop:
-        prop.update(meta)
+        update_meta = {**meta}
+        if not prop.data.get('source_monitor'):
+            update_meta['source_monitor'] = _seed_monitor_from_meta(meta)
+        if prop.data.get('reextract_needed') is None:
+            update_meta['reextract_needed'] = False
+        prop.update(update_meta)
         print(f"Updated prop {source_id}")
     else:
         create_meta = {**meta}
         create_meta['status'] = "pending_extraction"
+        create_meta['source_monitor'] = _seed_monitor_from_meta(meta)
+        create_meta['reextract_needed'] = False
         Prop.create(db, create_meta)
         print(f"Created prop {source_id}")
 
