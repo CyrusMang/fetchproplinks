@@ -258,7 +258,11 @@ def create_match_prompt(conv, listings):
         {
             'role': 'user',
             'content': json.dumps(
-                {'subscriber_conversations': sanitize_conv(conv), 'new_listings': listings},
+                {
+                    'subscriber_conversations': sanitize_conv(conv), 
+                    'user_preference': conv.get('userPreferences', {}),
+                    'new_listings': listings
+                },
                 ensure_ascii=False,
             ),
         },
