@@ -69,6 +69,7 @@ Return only valid JSON in this format:
     "title": "string",
     "description": "string",
     "estate_or_building_name": "string"|null (need to be specified if it's an estate or building, otherwise it should be null),
+    "block": "string"|null,
     "district": "string",
     "floor": "string",
     "features": [ "string", ... ],
@@ -157,7 +158,11 @@ def main():
             batch_file.write(f"{json.dumps(row, ensure_ascii=False)}\n")
             collection.update_one(
                 { 'source_id': property['source_id'] },
-                { '$set': { 'v1_data_extracting_code': batch_code } }
+                { '$set': { 
+                    'v1_data_extracting_code': batch_code,
+                    'reextract_needed': False,
+                    'reextract_reason': "",
+                } }
             )
     print(f"Batch file created: {batch_file_path}")
     client.close()

@@ -123,10 +123,10 @@ def extract_indexing_text(prop):
     parts = []
 
     # Headlines and summaries (highest weight)
-    if summary.get("headline"):
-        parts.append(summary["headline"])
-    if summary.get("executive_summary"):
-        parts.append(summary["executive_summary"])
+    if summary.get("headline_en"):
+        parts.append(summary["headline_en"])
+    if summary.get("executive_summary_en"):
+        parts.append(summary["executive_summary_en"])
 
     # Key highlights and concerns
     highlights = summary.get("key_highlights", [])
