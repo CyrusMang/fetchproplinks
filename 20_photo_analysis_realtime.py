@@ -98,6 +98,7 @@ def parse_json_response(content):
 
     result = find_analysis_object(result)
     if not result:
+        print(content)
         raise ValueError(
             "Expected a photo-analysis object in the model response"
         )

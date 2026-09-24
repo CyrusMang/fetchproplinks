@@ -58,11 +58,11 @@ def get_all_result_files(folder_path):
     return files
 
 
-def is_push_true_for_last_10_messages(conv):
+def is_push_true_for_last_5_messages(conv):
     messages = conv.get('messages', [])
-    if len(messages) < 10:
+    if len(messages) < 5:
         return False
-    for m in messages[-10:]:
+    for m in messages[-5:]:
         if m.get('type') != 'ai' or m.get('data', {}).get('additional_kwargs', {}).get('push_prop', False) == False:
             return False
     return True
@@ -309,8 +309,8 @@ def main():
     processed_count = 0
     with open(batch_file_path, 'w', encoding='utf-8') as batch_file:
         for conv in active_conversation(db):
-            if is_push_true_for_last_10_messages(conv):
-                print(f"Conversation {conv['_id']} has push=True for last 10 messages, skipping.")
+            if is_push_true_for_last_5_messages(conv):
+                print(f"Conversation {conv['_id']} has push=True for last 5 messages, skipping.")
                 continue
             filtered_listings = prematch_by_search_criteria(conv, sorted_listings)
             if not filtered_listings:

@@ -99,6 +99,8 @@ def create_building_estate_record(db, premises):
 
   eng_street = eng.get('EngStreet', {}) or {}
   chi_street = chi.get('ChiStreet', {}) or {}
+  eng_estate = eng.get('EngEstate', {}) or {}
+  chi_estate = chi.get('ChiEstate', {}) or {}
 
   latitude = float(geo['Latitude']) if geo.get('Latitude') else None
   longitude = float(geo['Longitude']) if geo.get('Longitude') else None
@@ -142,11 +144,43 @@ def create_building_estate_record(db, premises):
     'updated_at': now,
   }
   if data['name']['en'] or data['name']['zh-hk']:
-    db['estate_buildings'].update_one(
+    building_result = db['estate_buildings'].update_one(
       {'$or': [{'name.en': data['name']['en']}, {'name.zh-hk': data['name']['zh-hk']}]},
       {'$set': data},
       upsert=True
     )
+    building = db['estate_buildings'].find_one(
+      {'_id': building_result.upserted_id}
+      if building_result.upserted_id
+      else {'$or': [{'name.en': data['name']['en']}, {'name.zh-hk': data['name']['zh-hk']}]}
+    )
+
+    estate_name = {
+      'en': normalize_text(eng_estate.get('EngPhase').get('PhaseName') or eng_estate.get('EstateName')),
+      'zh-hk': normalize_text(chi_estate.get('ChiPhase').get('PhaseName') or chi_estate.get('EstateName')),
+    }
+    if estate_name['en'] or estate_name['zh-hk']:
+      estate_result = db['estate'].update_one(
+        {'$or': [{'name.en': estate_name['en']}, {'name.zh-hk': estate_name['zh-hk']}]},
+        {'$set': {
+          'name': estate_name,
+          'subdistrict_id': subdistrict_info['subdistrict_id'],
+          'updated_at': now,
+        }, '$setOnInsert': {
+          'created_at': now,
+        }},
+        upsert=True
+      )
+      estate = db['estate'].find_one(
+        {'_id': estate_result.upserted_id}
+        if estate_result.upserted_id
+        else {'$or': [{'name.en': estate_name['en']}, {'name.zh-hk': estate_name['zh-hk']}]}
+      )
+      db['estate_buildings'].update_one(
+        {'_id': building['_id']},
+        {'$set': {'estate_id': estate['_id'], 'updated_at': now}},
+      )
+    return building['_id']
 
 
 def pick_place(places, estate_or_building_name):
@@ -251,8 +285,8 @@ def search_estate_address(db, prop):
         'source': 'als_gov_hk',
       }
 
-    create_building_estate_record(db, premises)
-    return {
+    building_id = create_building_estate_record(db, premises)
+    address = {
       'geo_address': premises.get('GeoAddress'),
       'en': {
         'building_name': eng.get('BuildingName'),
@@ -276,6 +310,8 @@ def search_estate_address(db, prop):
       'score': float(score) if score else None,
       'source': 'als_gov_hk',
     }
+    address['building_estate_id'] = building_id
+    return address
   except Exception as error:
     print(f"Place search failed for query '{q}': {error}")
 
