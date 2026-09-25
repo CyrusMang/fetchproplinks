@@ -52,11 +52,9 @@ def main():
         ],
         'status': { "$ne": "archived" },
     }
-    skip = 0
     while True:
-        if not check_batch(db, driver, f, skip=skip):
+        if not check_batch(db, driver, f, skip=0):
             break
-        skip += batch_size
     print("Review completed.")
     driver.quit()
     client.close()

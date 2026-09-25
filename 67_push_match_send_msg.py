@@ -4,19 +4,18 @@ import uuid
 import random
 from datetime import datetime, timedelta
 
+import requests
 from bson import ObjectId
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 
-import chatwoot_api_helpers
-
 load_dotenv()
 
 MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
-CHATWOOT_ACCOUNT_ID = os.getenv("CHATWOOT_ACCOUNT_ID")
-CHATWOOT_API_TOKEN = os.getenv("CHATWOOT_API_TOKEN")
-CHATWOOT_INBOX_ID = os.getenv("CHATWOOT_INBOX_ID")
+META_WHATSAPP_PHONE_NUMBER_ID = os.getenv("META_WHATSAPP_PHONE_NUMBER_ID")
+META_WHATSAPP_ACCESS_TOKEN = os.getenv("META_WHATSAPP_ACCESS_TOKEN")
+META_WHATSAPP_API_VERSION = os.getenv("META_WHATSAPP_API_VERSION", "v22.0")
 
 # Post-side config
 POST_TEMPLATE_NAME = os.getenv("POST_TEMPLATE_NAME", "prop_suggestion")
@@ -47,6 +46,61 @@ PROP_TEMPLATES = {
 TOKEN_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 DEFAULT_TOKEN_LENGTH = 7
 MAX_INSERT_ATTEMPTS = 20
+
+WHATSAPP_LANG_CODES = {
+    "en": "en",
+    "zh-hk": "zh_HK",
+    "zh-cn": "zh_CN",
+}
+
+
+def normalize_whatsapp_phone(phone):
+    return "".join(ch for ch in str(phone or "") if ch.isdigit())
+
+
+def send_whatsapp_template(phone, lang, template_name, template_params):
+    to = normalize_whatsapp_phone(phone)
+    if not to:
+        print(f"Invalid WhatsApp phone: {phone}")
+        return False
+
+    url = (
+        f"https://graph.facebook.com/{META_WHATSAPP_API_VERSION}/"
+        f"{META_WHATSAPP_PHONE_NUMBER_ID}/messages"
+    )
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": WHATSAPP_LANG_CODES.get(lang, "zh_HK")},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {
+                            "type": "text",
+                            "parameter_name": str(name),
+                            "text": str(value),
+                        }
+                        for name, value in template_params.items()
+                    ],
+                }
+            ],
+        },
+    }
+    headers = {
+        "Authorization": f"Bearer {META_WHATSAPP_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    resp = requests.post(url, json=payload, headers=headers, timeout=15)
+    if resp.status_code not in (200, 201):
+        print(f"WhatsApp template send failed ({resp.status_code}): {resp.text}")
+        return False
+    print(f"Template sent to {to}")
+    return True
 
 def random_token(length):
     return "".join(random.choice(TOKEN_ALPHABET) for _ in range(length))
@@ -562,7 +616,6 @@ def queue_item_is_expired(item, now_ts):
             expired_at = int(created_at) + (2 * 24 * 60 * 60)
         except Exception:
             return False
-
     try:
         return int(expired_at) <= int(now_ts)
     except Exception:
@@ -578,8 +631,8 @@ def is_active_property(prop):
 
 
 def main():
-    if not all([CHATWOOT_ACCOUNT_ID, CHATWOOT_API_TOKEN, CHATWOOT_INBOX_ID]):
-        print("Missing Chatwoot configuration (CHATWOOT_ACCOUNT_ID / CHATWOOT_API_TOKEN / CHATWOOT_INBOX_ID).")
+    if not all([META_WHATSAPP_PHONE_NUMBER_ID, META_WHATSAPP_ACCESS_TOKEN]):
+        print("Missing WhatsApp configuration (META_WHATSAPP_PHONE_NUMBER_ID / META_WHATSAPP_ACCESS_TOKEN).")
         return
 
     if not MONGODB_CONNECTION_STRING:
@@ -632,18 +685,6 @@ def main():
 
         lang = normalize_lang(conv.get("language", "zh-hk"))
 
-        contact = chatwoot_api_helpers.get_or_create_contact(phone)
-        if not contact:
-            print(f"Failed to get or create contact for {user.get('_id')}")
-            failed += 1
-            continue
-
-        contact_id = contact.get("id")
-        if not contact_id:
-            print(f"Contact found but missing ID for {user.get('_id')}")
-            failed += 1
-            continue
-
         if queue_type == "post":
             queued_post_id = str(pending_item.get("post_id"))
             post = find_post_by_post_id(db, queued_post_id)
@@ -665,7 +706,7 @@ def main():
                 failed += 1
                 continue
 
-            template_name, template_category = TEMPLATES.get(lang, TEMPLATES["zh-hk"])
+            template_name = TEMPLATES.get(lang, TEMPLATES["zh-hk"])[0]
             caption = build_post_caption(post, lang)
             link = build_post_link(lang, canonical_post_id)
             template_params = {
@@ -680,14 +721,7 @@ def main():
                 failed += 1
                 continue
 
-            success = chatwoot_api_helpers.send_whatsapp_template(
-                contact_id,
-                lang,
-                template_name,
-                template_category,
-                template_params,
-                rendered_message,
-            )
+            success = send_whatsapp_template(phone, lang, template_name, template_params)
 
             if not success:
                 failed += 1
@@ -719,7 +753,7 @@ def main():
             failed += 1
             continue
 
-        prop_template_name, prop_template_category = PROP_TEMPLATES.get(lang, PROP_TEMPLATES["zh-hk"])
+        prop_template_name = PROP_TEMPLATES.get(lang, PROP_TEMPLATES["zh-hk"])[0]
         prop_caption = build_prop_caption(prop, lang)
         prop_link = build_prop_link(db, conv, lang, canonical_prop_id)
         prop_template_params = {
@@ -734,14 +768,7 @@ def main():
             failed += 1
             continue
 
-        prop_success = chatwoot_api_helpers.send_whatsapp_template(
-            contact_id,
-            lang,
-            prop_template_name,
-            prop_template_category,
-            prop_template_params,
-            prop_rendered_message,
-        )
+        prop_success = send_whatsapp_template(phone, lang, prop_template_name, prop_template_params)
 
         if not prop_success:
             failed += 1
