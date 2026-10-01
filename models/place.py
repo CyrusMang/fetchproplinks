@@ -158,7 +158,7 @@ class Place:
             return existing
         return Place._request(db, 'autocomplete', 'normal', opt)
 
-    def nearby_search(db, location, radius, types=[]):
+    def nearby_search(db, location, radius, types=[], *, rank_preference=None, language_code=None):
         opt = { 
             'locationRestriction': {
                 'circle': {
@@ -168,12 +168,17 @@ class Place:
             },
             'includedPrimaryTypes': types,
         }
+        if rank_preference:
+            opt['rankPreference'] = rank_preference
+        if language_code:
+            opt['languageCode'] = language_code
         existing = Place._existing(db, 'nearbySearch', opt)
         if existing:
             placeIds = [place['id'] for place in existing['places']]
             places = Place.find_by_ids(db, placeIds)
             return places
         usage = Place._30daysUsages(db, 'nearbySearch')
+        print(f'usage: {usage}')
         with open(os.path.join(dir, '..', 'static', 'place-nearby-search-data-field.json')) as f:
             place_nearby_search_fields = json.load(f)
             fields = [

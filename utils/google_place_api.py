@@ -41,7 +41,7 @@ def text_search(options, fields):
         raise ValueError(f"Error: {response.status_code}, {response.text}")
     
 def nearby_search(options, fields):
-    url = f'{ENDPOINT}:nearbySearch'
+    url = f'{ENDPOINT}:searchNearby'
     headers = {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_KEY,

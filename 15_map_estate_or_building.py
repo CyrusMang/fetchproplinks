@@ -164,6 +164,31 @@ def create_building_estate_record(db, premises):
         {'$or': [{'name.en': estate_name['en']}, {'name.zh-hk': estate_name['zh-hk']}]},
         {'$set': {
           'name': estate_name,
+          'estateName': {
+            'en': normalize_text(eng_estate.get('EstateName')),
+            'zh-hk': normalize_text(chi_estate.get('EstateName')),
+          },
+          'phaseName': {
+            'en': normalize_text(eng_estate.get('EngPhase').get('PhaseName')),
+            'zh-hk': normalize_text(chi_estate.get('ChiPhase').get('PhaseName')),
+          },
+          'phaseNo': normalize_text(eng_estate.get('EngPhase').get('PhaseNo')),
+          'district': {
+            'en': (eng.get('EngDistrict') or {}).get('DcDistrict'),
+            'zh-hk': (chi.get('ChiDistrict') or {}).get('DcDistrict'),
+          },
+          'street': {
+            'en': eng_street.get('StreetName'),
+            'zh-hk': chi_street.get('StreetName'),
+          },
+          'region': {
+            'en': eng.get('Region'),
+            'zh-hk': chi.get('Region'),
+          },
+          'geoLocation': {
+            'latitude': latitude,
+            'longitude': longitude,
+          },
           'subdistrict_id': subdistrict_info['subdistrict_id'],
           'updated_at': now,
         }, '$setOnInsert': {
